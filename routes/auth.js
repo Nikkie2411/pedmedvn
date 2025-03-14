@@ -344,6 +344,7 @@ logger.info('Request received for /api/logout-device', { body: req.body });
     const oldDevice = devices.find(d => d.id === deviceId);
     if (oldDevice) {
       const clientKey = `${username}_${deviceId}`;
+      const clients = req.app.locals.clients;
       const oldClient = clients.get(clientKey);
       if (oldClient && oldClient.readyState === WebSocket.OPEN) {
         oldClient.send(JSON.stringify({ action: 'logout', message: 'Thiết bị của bạn đã bị đăng xuất bởi thiết bị mới!' }));
