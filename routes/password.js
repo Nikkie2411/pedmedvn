@@ -3,6 +3,7 @@ const router = express.Router();
 const { otpLimiter } = require('../middleware/rateLimit');
 const { setOtp, getOtp, deleteOtp } = require('../services/otp');
 const { sendEmailWithGmailAPI } = require('../services/email');
+const logger = require('../utils/logger');
 
 router.post('/send-otp', otpLimiter, async (req, res, next) => {
     logger.info('Request received for /api/send-otp', { body: req.body });
@@ -16,6 +17,12 @@ router.post('/send-otp', otpLimiter, async (req, res, next) => {
   
     try {
       logger.info(`Fetching user data for ${username}`);
+      const sheetsClient = req.app.locals.sheetsClient; // Lấy từ app.locals
+      const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID; // Lấy từ app.locals
+      if (!sheetsClient || !SPREADSHEET_ID) {
+        return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
+      }
+
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
       const response = await sheetsClient.spreadsheets.values.get({
@@ -80,5 +87,11 @@ router.post('/verify-otp', async (req, res, next) => {
       next(error);
     }
 });
+
+// Hàm kiểm tra email hợp lệ
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
 
 module.exports = router;
