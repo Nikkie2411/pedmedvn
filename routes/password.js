@@ -182,6 +182,14 @@ router.post('/reset-password', async (req, res, next) => {
       }
     });
 
+    const allClients = req.app.locals.clients;
+    allClients.forEach((client, clientKey) => {
+      if (clientKey.startsWith(`${username}_`) && client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ action: 'logout', message: 'Mật khẩu đã được thay đổi, tất cả thiết bị đã bị đăng xuất!' }));
+        logger.info(`Sent logout notification to ${clientKey}`);
+      }
+    });
+
       return res.json({ success: true, message: "Đổi mật khẩu thành công! Hãy đăng nhập lại." });
 
   } catch (error) {

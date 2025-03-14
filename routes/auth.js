@@ -455,6 +455,21 @@ router.post('/logout-device-from-sheet', async (req, res, next) => {
     return res.status(400).json({ success: false, message: "Thiết bị không tồn tại trong danh sách!" });
   }
 
+  // Gửi thông báo đến thiết bị bị xóa trước khi xóa
+  const oldDevice = devices.find(d => d.id === deviceId);
+  if (oldDevice) {
+    const clientKey = `${username}_${deviceId}`;
+    const clients = req.app.locals.clients;
+    const oldClient = clients.get(clientKey);
+    if (oldClient && oldClient.readyState === WebSocket.OPEN) {
+      oldClient.send(JSON.stringify({ action: 'logout', message: 'Thiết bị của bạn đã bị đăng xuất!' }));
+      logger.info(`Sent logout notification to ${clientKey}`);
+    } else if (oldClient) {
+      clients.delete(clientKey); // Xóa kết nối không hoạt động
+      logger.info(`Removed stale WebSocket connection for ${clientKey}`);
+    }
+  }
+
   devices = devices.filter(d => d.id !== deviceId);
   const values = [
     devices[0]?.id || "", devices[0]?.name || "",
