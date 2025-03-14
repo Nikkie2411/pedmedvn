@@ -13,14 +13,15 @@ router.get('/drugs', async (req, res) => {
     const limit = isNaN(parseInt(limitRaw)) || parseInt(limitRaw) < 1 ? 10 : parseInt(limitRaw);
   
     const cacheKey = query ? `drugs_${query}_${page}_${limit}` : 'all_drugs';
-  
+
+    let timeout;
     try {
       // Kiểm tra cache trước
       let drugs = cache.get(cacheKey);
       if (!drugs) {
         console.log('Cache miss - Lấy dữ liệu từ Google Sheets');
       const controller = new AbortController();
-      const timeout = setTimeout(() => {
+      timeout = setTimeout(() => {
         controller.abort();
         throw new Error('Request to Google Sheets timed out after 10 seconds');
       }, 10000);
