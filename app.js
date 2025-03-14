@@ -13,6 +13,7 @@ const logger = require('./utils/logger');
 const app = express();
 
 app.locals.SPREADSHEET_ID = process.env.SPREADSHEET_ID;
+app.locals.clients = new Map();
 
 async function startServer() {
   await initializeSheetsClient();
