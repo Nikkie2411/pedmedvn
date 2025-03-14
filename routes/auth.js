@@ -18,6 +18,11 @@ router.post('/login', loginLimiter, async (req, res, next) => {
     if (!sheetsClient) {
       return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
     }
+
+    const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID; // Lấy từ app.locals
+    if (!SPREADSHEET_ID) {
+      return res.status(500).json({ success: false, message: 'SPREADSHEET_ID not configured' });
+    }
   
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -134,6 +139,11 @@ router.post('/register', async (req, res, next) => {
     if (!sheetsClient) {
       return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
     }
+
+    const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID; // Lấy từ app.locals
+    if (!SPREADSHEET_ID) {
+      return res.status(500).json({ success: false, message: 'SPREADSHEET_ID not configured' });
+    }
   
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -223,6 +233,11 @@ router.post('/check-session', async (req, res, next) => {
     return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
   }
 
+  const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID; // Lấy từ app.locals
+  if (!SPREADSHEET_ID) {
+    return res.status(500).json({ success: false, message: 'SPREADSHEET_ID not configured' });
+  }
+
   try {
     console.log(`📌 Kiểm tra trạng thái tài khoản của: ${username}, DeviceID: ${deviceId}`);
     const response = await sheetsClient.spreadsheets.values.get({
@@ -291,6 +306,11 @@ logger.info('Request received for /api/logout-device', { body: req.body });
     const sheetsClient = req.app.locals.sheetsClient; // Lấy từ app.locals
     if (!sheetsClient) {
       return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
+    }
+
+    const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID; // Lấy từ app.locals
+    if (!SPREADSHEET_ID) {
+      return res.status(500).json({ success: false, message: 'SPREADSHEET_ID not configured' });
     }
 
     const response = await sheetsClient.spreadsheets.values.get({
