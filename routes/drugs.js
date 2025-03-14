@@ -20,6 +20,11 @@ router.get('/drugs', async (req, res) => {
       let drugs = cache.get(cacheKey);
       if (!drugs) {
         console.log('Cache miss - Lấy dữ liệu từ Google Sheets');
+        const sheetsClient = req.app.locals.sheetsClient; // Lấy sheetsClient từ app.locals
+      const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID; // Lấy SPREADSHEET_ID từ app.locals
+      if (!sheetsClient || !SPREADSHEET_ID) {
+        return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
+      }
       const controller = new AbortController();
       timeout = setTimeout(() => {
         controller.abort();
@@ -83,6 +88,7 @@ router.get('/drugs', async (req, res) => {
 
 router.get('/drugs/invalidate-cache', async (req, res) => {
     cache.del('all_drugs');
+    const wss = req.app.locals.wss;
   if (wss) {
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
