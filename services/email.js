@@ -88,4 +88,29 @@ async function sendEmailWithGmailAPI(toEmail, subject, body, retries = 3, delay 
   }
 }
 
-module.exports = { sendEmailWithGmailAPI };
+async function sendRegistrationEmail(toEmail, username) {
+    try {
+    const emailBody = `
+      <h2 style="color: #4CAF50;">Xin chào ${username}!</h2>
+      <p>Cảm ơn bạn đã đăng ký tài khoản tại PedMedVN. Tài khoản của bạn đã được tạo thành công và đang chờ phê duyệt từ quản trị viên.</p>
+      <p>Chúng tôi sẽ thông báo qua email này khi tài khoản được phê duyệt.</p>
+      <p>Trân trọng,<br>Đội ngũ PedMedVN</p>
+    `;
+    await sendEmailWithGmailAPI(toEmail, "ĐĂNG KÝ TÀI KHOẢN PEDMEDVN THÀNH CÔNG", emailBody);
+  } catch (error) {
+    logger.error(`Failed to send registration email to ${toEmail}:`, error);
+    // Có thể ghi log hoặc xử lý thêm, nhưng không crash server
+  }
+  }
+  
+  async function sendApprovalEmail(toEmail, username) {
+    const emailBody = `
+      <h2 style="color: #4CAF50;">Xin chào ${username}!</h2>
+      <p style="font-weight: bold">Tài khoản ${username} của bạn đã được phê duyệt thành công.</p>
+      <p>Bạn có thể đăng nhập tại: <a href="https://pedmed-vnch.web.app">Đăng nhập ngay</a></p>
+      <p>Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!</p>
+    `;
+    await sendEmailWithGmailAPI(toEmail, "TÀI KHOẢN PEDMEDVN ĐÃ ĐƯỢC PHÊ DUYỆT", emailBody);
+  }
+
+module.exports = { sendRegistrationEmail, sendApprovalEmail };
