@@ -13,6 +13,11 @@ router.post('/login', loginLimiter, async (req, res, next) => {
     if (!username || !password || !deviceId) {
       return res.status(400).json({ success: false, message: "Thiếu thông tin đăng nhập!" });
     }
+
+    const sheetsClient = req.app.locals.sheetsClient; // Lấy từ app.locals
+    if (!sheetsClient) {
+      return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
+    }
   
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -124,6 +129,11 @@ router.post('/register', async (req, res, next) => {
     if (!isValidPhone(phone)) {
       return res.status(400).json({ success: false, message: "Số điện thoại không hợp lệ!" });
     }
+
+    const sheetsClient = req.app.locals.sheetsClient; // Lấy từ app.locals
+    if (!sheetsClient) {
+      return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
+    }
   
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -208,6 +218,11 @@ router.post('/check-session', async (req, res, next) => {
     return res.status(400).json({ success: false, message: "Thiếu thông tin tài khoản hoặc thiết bị!" });
   }
 
+  const sheetsClient = req.app.locals.sheetsClient; // Lấy từ app.locals
+  if (!sheetsClient) {
+    return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
+  }
+
   try {
     console.log(`📌 Kiểm tra trạng thái tài khoản của: ${username}, DeviceID: ${deviceId}`);
     const response = await sheetsClient.spreadsheets.values.get({
@@ -271,6 +286,11 @@ logger.info('Request received for /api/logout-device', { body: req.body });
 
     if (!username || !deviceId || !newDeviceId || !newDeviceName) {
       return res.status(400).json({ success: false, message: "Thiếu thông tin cần thiết" });
+    }
+
+    const sheetsClient = req.app.locals.sheetsClient; // Lấy từ app.locals
+    if (!sheetsClient) {
+      return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
     }
 
     const response = await sheetsClient.spreadsheets.values.get({
