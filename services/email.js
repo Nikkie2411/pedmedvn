@@ -113,4 +113,4 @@ async function sendRegistrationEmail(toEmail, username) {
     await sendEmailWithGmailAPI(toEmail, "TÀI KHOẢN PEDMEDVN ĐÃ ĐƯỢC PHÊ DUYỆT", emailBody);
   }
 
-module.exports = { sendRegistrationEmail, sendApprovalEmail };
+module.exports = { sendEmailWithGmailAPI, sendRegistrationEmail, sendApprovalEmail };
