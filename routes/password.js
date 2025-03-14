@@ -96,7 +96,7 @@ function isValidEmail(email) {
 }
 
 //API cập nhật mật khẩu mới
-router.post('/api/reset-password', async (req, res, next) => {
+router.post('/reset-password', async (req, res, next) => {
   logger.info('Request received for /api/reset-password', { body: req.body });
   const { username, newPassword } = req.body;
 
