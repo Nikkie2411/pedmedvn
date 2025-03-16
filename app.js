@@ -9,6 +9,7 @@ const authRoutes = require('./routes/auth');
 const drugRoutes = require('./routes/drugs');
 const passwordRoutes = require('./routes/password');
 const logger = require('./utils/logger');
+const therapyRouter = require('./routes/therapy');
 
 const app = express();
 
@@ -27,6 +28,7 @@ async function startServer() {
   app.use('/api', authRoutes);
   app.use('/api', drugRoutes);
   app.use('/api', passwordRoutes);
+  app.use('/api', therapyRouter);
 
   const server = app.listen(PORT, '0.0.0.0', () => logger.info(`Server running on port ${PORT}`));
   app.locals.wss = setupWebSocket(server);
