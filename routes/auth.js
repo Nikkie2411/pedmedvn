@@ -11,6 +11,12 @@ const { isValidEmail, isValidPhone } = require('../utils/validation');
 // Khởi tạo cache
 const cache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
 
+// Trong file router (ví dụ: routes/auth.js)
+router.get('/ping', (req, res) => {
+  logger.info('Ping request received');
+  res.status(200).json({ success: true, message: 'Server is alive' });
+});
+
 router.post('/login', loginLimiter, async (req, res, next) => {
   const { username, password, deviceId, deviceName } = req.body;
     logger.info('Login request received', { username, deviceId, deviceName });
