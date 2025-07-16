@@ -9,32 +9,26 @@ const drugRoutes = require('./routes/drugs');
 const passwordRoutes = require('./routes/password');
 const logger = require('./utils/logger');
 const therapyRouter = require('./routes/therapy');
+const cors = require('cors');
 
 const app = express();
 
-// Custom CORS Middleware - Force Railway redeploy
-app.use((req, res, next) => {
-  const allowedOrigins = ['https://pedmed-vnch.web.app', 'http://localhost:8080', 'http://127.0.0.1:5500'];
-  const origin = req.headers.origin;
-  
-  console.log('CORS request from:', origin);
-
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-
-  // Handle pre-flight request
-  if (req.method === 'OPTIONS') {
-    console.log('OPTIONS request handled');
-    return res.sendStatus(204);
-  }
-
-  next();
-});
+// Use official cors middleware with dynamic origin check
+const allowedOrigins = ['https://pedmed-vnch.web.app', 'http://localhost:8080', 'http://127.0.0.1:5500'];
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
+}));
 
 app.locals.SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 app.locals.clients = new Map();
@@ -70,15 +64,10 @@ startServer().catch(err => {
 
 app.use((err, req, res, next) => {
   // Always set CORS headers on error responses
-  const allowedOrigins = ['https://pedmed-vnch.web.app', 'http://localhost:8080', 'http://127.0.0.1:5500'];
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
   logger.error('Unhandled error', { error: err.stack });
   res.status(err.status || 500).json({ success: false, message: err.message || 'Server error' });
 });
