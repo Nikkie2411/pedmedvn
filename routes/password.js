@@ -5,6 +5,7 @@ const { setOtp, getOtp, deleteOtp } = require('../services/otp');
 const { sendEmailWithGmailAPI } = require('../services/email');
 const logger = require('../utils/logger');
 const bcrypt = require('bcrypt');
+const { isValidEmail } = require('../utils/validation');
 
 router.post('/send-otp', otpLimiter, async (req, res, next) => {
     logger.info('Request received for /api/send-otp', { body: req.body });
@@ -88,12 +89,6 @@ router.post('/verify-otp', async (req, res, next) => {
       next(error);
     }
 });
-
-// Hàm kiểm tra email hợp lệ
-function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
 
 //API cập nhật mật khẩu mới
 router.post('/reset-password', async (req, res, next) => {
@@ -183,6 +178,14 @@ router.post('/reset-password', async (req, res, next) => {
       const oldClient = clients.get(clientKey);
       if (oldClient && oldClient.readyState === WebSocket.OPEN) {
         oldClient.send(JSON.stringify({ action: 'logout', message: 'Mật khẩu đã được thay đổi, thiết bị của bạn đã bị đăng xuất!' }));
+        logger.info(`Sent logout notification to ${clientKey}`);
+      }
+    });
+
+    const allClients = req.app.locals.clients;
+    allClients.forEach((client, clientKey) => {
+      if (clientKey.startsWith(`${username}_`) && client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ action: 'logout', message: 'Mật khẩu đã được thay đổi, tất cả thiết bị đã bị đăng xuất!' }));
         logger.info(`Sent logout notification to ${clientKey}`);
       }
     });

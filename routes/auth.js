@@ -1,10 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
+const NodeCache = require('node-cache');
 const { loginLimiter } = require('../middleware/rateLimit');
 const { getSheetsClient } = require('../services/sheets');
-const { sendEmailWithGmailAPI } = require('../services/email');
+const { sendRegistrationEmail, sendApprovalEmail  } = require('../services/email');
 const logger = require('../utils/logger');
+const { isValidEmail, isValidPhone } = require('../utils/validation');
+
+// Khởi tạo cache
+const cache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
+
+// Trong file router (ví dụ: routes/auth.js)
+router.get('/ping', (req, res) => {
+  logger.info('Ping request received');
+  res.status(200).json({ success: true, message: 'Server is alive' });
+});
 
 router.post('/login', loginLimiter, async (req, res, next) => {
   const { username, password, deviceId, deviceName } = req.body;
@@ -14,14 +25,10 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Thiếu thông tin đăng nhập!" });
     }
 
-    const sheetsClient = req.app.locals.sheetsClient; // Lấy từ app.locals
-    if (!sheetsClient) {
+    const sheetsClient = req.app.locals.sheetsClient;
+    const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID;
+    if (!sheetsClient || !SPREADSHEET_ID) {
       return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
-    }
-
-    const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID; // Lấy từ app.locals
-    if (!SPREADSHEET_ID) {
-      return res.status(500).json({ success: false, message: 'SPREADSHEET_ID not configured' });
     }
   
     const controller = new AbortController();
@@ -135,14 +142,10 @@ router.post('/register', async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Số điện thoại không hợp lệ!" });
     }
 
-    const sheetsClient = req.app.locals.sheetsClient; // Lấy từ app.locals
-    if (!sheetsClient) {
+    const sheetsClient = req.app.locals.sheetsClient;
+    const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID;
+    if (!sheetsClient || !SPREADSHEET_ID) {
       return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
-    }
-
-    const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID; // Lấy từ app.locals
-    if (!SPREADSHEET_ID) {
-      return res.status(500).json({ success: false, message: 'SPREADSHEET_ID not configured' });
     }
   
     const controller = new AbortController();
@@ -219,6 +222,45 @@ router.post('/register', async (req, res, next) => {
     }
 });
 
+// API kiểm tra username
+router.post('/check-username', async (req, res, next) => {
+  logger.info('Request received for /api/check-username', { body: req.body });
+  try {
+    if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({ success: false, message: 'Yêu cầu không hợp lệ: Thiếu body hoặc định dạng sai!' });
+    }
+      const { username } = req.body;
+      if (!username) {
+          return res.status(400).json({ exists: false, message: "Thiếu tên đăng nhập!" });
+      }
+
+      const sheetsClient = req.app.locals.sheetsClient;
+      const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID;
+      if (!sheetsClient || !SPREADSHEET_ID) {
+        return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
+      }
+
+      const response = await sheetsClient.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'Accounts'
+      });
+
+      const rows = response.data.values;
+      const headers = rows[0];
+      const usernameIndex = headers.indexOf("Username");
+
+      if (usernameIndex === -1) {
+        return res.status(500).json({ success: false, message: "Lỗi cấu trúc Google Sheets!" });
+      }
+
+      const isUsernameTaken = rows.slice(1).some(row => row[usernameIndex]?.trim().toLowerCase() === username.trim().toLowerCase());
+      return res.json({ exists: isUsernameTaken });
+  } catch (error) {
+      console.error("❌ Lỗi khi kiểm tra username:", error);
+      next(error);
+  }
+});
+
 router.post('/check-session', async (req, res, next) => {
     logger.info('Request received for /api/check-session', { body: req.body });
   const { username, deviceId } = req.body;
@@ -228,14 +270,10 @@ router.post('/check-session', async (req, res, next) => {
     return res.status(400).json({ success: false, message: "Thiếu thông tin tài khoản hoặc thiết bị!" });
   }
 
-  const sheetsClient = req.app.locals.sheetsClient; // Lấy từ app.locals
-  if (!sheetsClient) {
+  const sheetsClient = req.app.locals.sheetsClient;
+  const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID;
+  if (!sheetsClient || !SPREADSHEET_ID) {
     return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
-  }
-
-  const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID; // Lấy từ app.locals
-  if (!SPREADSHEET_ID) {
-    return res.status(500).json({ success: false, message: 'SPREADSHEET_ID not configured' });
   }
 
   try {
@@ -303,14 +341,10 @@ logger.info('Request received for /api/logout-device', { body: req.body });
       return res.status(400).json({ success: false, message: "Thiếu thông tin cần thiết" });
     }
 
-    const sheetsClient = req.app.locals.sheetsClient; // Lấy từ app.locals
-    if (!sheetsClient) {
+    const sheetsClient = req.app.locals.sheetsClient;
+    const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID;
+    if (!sheetsClient || !SPREADSHEET_ID) {
       return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
-    }
-
-    const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID; // Lấy từ app.locals
-    if (!SPREADSHEET_ID) {
-      return res.status(500).json({ success: false, message: 'SPREADSHEET_ID not configured' });
     }
 
     const response = await sheetsClient.spreadsheets.values.get({
@@ -381,5 +415,130 @@ logger.info('Request received for /api/logout-device', { body: req.body });
   }
 });
 
+router.post('/logout-device-from-sheet', async (req, res, next) => {
+  logger.info('Request received for /api/logout-device-from-sheet', { body: req.body });
+  try {
+  const { username, deviceId } = req.body;
+
+  if (!username || !deviceId) {
+    return res.status(400).json({ success: false, message: "Thiếu thông tin tài khoản hoặc thiết bị!" });
+  }
+
+  const sheetsClient = req.app.locals.sheetsClient;
+  const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID;
+  if (!sheetsClient || !SPREADSHEET_ID) {
+    return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
+  }
+
+  const response = await sheetsClient.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: 'Accounts',
+  });
+
+  const rows = response.data.values;
+  const headers = rows[0];
+  const usernameIndex = headers.indexOf("Username");
+  const device1IdIndex = headers.indexOf("Device_1_ID");
+  const device1NameIndex = headers.indexOf("Device_1_Name");
+  const device2IdIndex = headers.indexOf("Device_2_ID");
+  const device2NameIndex = headers.indexOf("Device_2_Name");
+
+  if ([usernameIndex, device1IdIndex, device1NameIndex, device2IdIndex, device2NameIndex].includes(-1)) {
+    return res.status(500).json({ success: false, message: "Lỗi cấu trúc Google Sheets!" });
+  }
+
+  const userRowIndex = rows.findIndex(row => row[usernameIndex] === username);
+  if (userRowIndex === -1) {
+    return res.status(404).json({ success: false, message: "Không tìm thấy tài khoản!" });
+  }
+
+  let devices = [
+    { id: rows[userRowIndex][device1IdIndex], name: rows[userRowIndex][device1NameIndex] },
+    { id: rows[userRowIndex][device2IdIndex], name: rows[userRowIndex][device2NameIndex] }
+  ].filter(d => d.id);
+
+  if (!devices.some(d => d.id === deviceId)) {
+    return res.status(400).json({ success: false, message: "Thiết bị không tồn tại trong danh sách!" });
+  }
+
+  // Gửi thông báo đến thiết bị bị xóa trước khi xóa
+  const oldDevice = devices.find(d => d.id === deviceId);
+  if (oldDevice) {
+    const clientKey = `${username}_${deviceId}`;
+    const clients = req.app.locals.clients;
+    const oldClient = clients.get(clientKey);
+    if (oldClient && oldClient.readyState === WebSocket.OPEN) {
+      oldClient.send(JSON.stringify({ action: 'logout', message: 'Thiết bị của bạn đã bị đăng xuất!' }));
+      logger.info(`Sent logout notification to ${clientKey}`);
+    } else if (oldClient) {
+      clients.delete(clientKey); // Xóa kết nối không hoạt động
+      logger.info(`Removed stale WebSocket connection for ${clientKey}`);
+    }
+  }
+
+  devices = devices.filter(d => d.id !== deviceId);
+  const values = [
+    devices[0]?.id || "", devices[0]?.name || "",
+    devices[1]?.id || "", devices[1]?.name || ""
+  ];
+
+const startCol = String.fromCharCode(65 + device1IdIndex);
+const endCol = String.fromCharCode(65 + device2NameIndex);
+await sheetsClient.spreadsheets.values.update({
+  spreadsheetId: SPREADSHEET_ID,
+  range: `Accounts!${startCol}${userRowIndex + 1}:${endCol}${userRowIndex + 1}`,
+  valueInputOption: "RAW",
+  resource: { values: [values] }
+});
+
+  return res.json({ success: true, message: "Thiết bị đã được xóa khỏi danh sách!" });
+} catch (error) {
+  logger.error('Lỗi khi xóa thiết bị khỏi Google Sheets:', error);
+  next(error);
+}
+});
+
+router.post('/check-approval', async (req, res, next) => {
+  logger.info('Request received for /api/check-approval');
+  try {
+    const sheetsClient = req.app.locals.sheetsClient;
+    const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID;
+    if (!sheetsClient || !SPREADSHEET_ID) {
+      return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
+    }
+    
+    const response = await sheetsClient.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Accounts'
+    });
+
+    const rows = response.data.values;
+    const headers = rows[0];
+    const usernameIndex = headers.indexOf("Username");
+    const emailIndex = headers.indexOf("Email");
+    const approvedIndex = headers.indexOf("Approved");
+
+    if ([usernameIndex, emailIndex, approvedIndex].includes(-1)) {
+      return res.status(500).json({ success: false, message: "Lỗi cấu trúc Google Sheets!" });
+    }
+
+    const accounts = rows.slice(1);
+    for (let i = 0; i < accounts.length; i++) {
+      const username = accounts[i][usernameIndex];
+      const email = accounts[i][emailIndex];
+      const approved = accounts[i][approvedIndex]?.trim().toLowerCase();
+
+      if (approved === "đã duyệt" && !cache.get(`approved_${username}`)) {
+        await sendApprovalEmail(email, username);
+        cache.set(`approved_${username}`, true);
+      }
+    }
+
+    res.json({ success: true, message: "Kiểm tra và gửi email hoàn tất" });
+  } catch (error) {
+    logger.error("Lỗi khi kiểm tra phê duyệt:", error);
+    next(error);
+  }
+});
 
 module.exports = router;

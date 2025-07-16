@@ -9,8 +9,13 @@ let isLoadingUsernames = false;
 async function initializeSheetsClient(retries = 3, delay = 5000) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
+      const credentialsString = process.env.GOOGLE_CREDENTIALS;
+      if (!credentialsString) {
+        throw new Error('GOOGLE_CREDENTIALS environment variable is not set');
+      }
+      
       const auth = new google.auth.GoogleAuth({
-        credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
+        credentials: JSON.parse(credentialsString),
         scopes: ['https://www.googleapis.com/auth/spreadsheets']
       });
       const authClient = await auth.getClient();

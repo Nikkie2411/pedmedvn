@@ -4,8 +4,9 @@ const NodeCache = require('node-cache');
 const { getSheetsClient } = require('../services/sheets');
 const cache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
 const logger = require('../utils/logger');
+const { ensureSheetsClient } = require('../middleware/auth');
 
-router.get('/drugs', async (req, res) => {
+router.get('/drugs', ensureSheetsClient, async (req, res) => {
     logger.info('Request received for /api/drugs', { query: req.query });
     const { query, page: pageRaw = 1, limit: limitRaw = 10 } = req.query;
   
@@ -86,7 +87,7 @@ router.get('/drugs', async (req, res) => {
     }
 });
 
-router.get('/drugs/invalidate-cache', async (req, res) => {
+router.get('/drugs/invalidate-cache', ensureSheetsClient, async (req, res) => {
     cache.del('all_drugs');
     const wss = req.app.locals.wss;
   if (wss) {
