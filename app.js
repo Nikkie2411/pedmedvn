@@ -12,10 +12,12 @@ const therapyRouter = require('./routes/therapy');
 
 const app = express();
 
-// Custom CORS Middleware - Replaces the 'cors' library
+// Custom CORS Middleware - Force Railway redeploy
 app.use((req, res, next) => {
   const allowedOrigins = ['https://pedmed-vnch.web.app', 'http://localhost:8080', 'http://127.0.0.1:5500'];
   const origin = req.headers.origin;
+  
+  console.log('CORS request from:', origin);
 
   if (allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
@@ -27,6 +29,7 @@ app.use((req, res, next) => {
 
   // Handle pre-flight request
   if (req.method === 'OPTIONS') {
+    console.log('OPTIONS request handled');
     return res.sendStatus(204);
   }
 
