@@ -65,5 +65,4 @@ async function loadUsernames() {
       isLoadingUsernames = false;
     }
 }
-
 module.exports = { initializeSheetsClient, loadUsernames, getSheetsClient: () => sheetsClient, getCachedUsernames: () => cachedUsernames };
