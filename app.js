@@ -9,7 +9,7 @@ const authRoutes = require('./routes/auth');
 const drugRoutes = require('./routes/drugs');
 const passwordRoutes = require('./routes/password');
 const logger = require('./utils/logger');
-const therapyRouter = require('./routes/therapy').default;
+const therapyRouter = require('./routes/therapy');
 
 const app = express();
 
