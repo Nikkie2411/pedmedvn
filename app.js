@@ -1,6 +1,5 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const { PORT } = require('./config/config');
 const { initializeSheetsClient, loadUsernames } = require('./services/sheets');
 const { setupWebSocket } = require('./websocket/websocket');
@@ -13,16 +12,26 @@ const therapyRouter = require('./routes/therapy');
 
 const app = express();
 
-// CORS configuration - MUST be the first middleware
-const corsOptions = {
-  origin: 'https://pedmed-vnch.web.app',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  credentials: true,
-  optionsSuccessStatus: 204 // For pre-flight requests
-};
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Explicitly handle pre-flight requests
+// Custom CORS Middleware - Replaces the 'cors' library
+app.use((req, res, next) => {
+  const allowedOrigins = ['https://pedmed-vnch.web.app', 'http://localhost:8080', 'http://127.0.0.1:5500'];
+  const origin = req.headers.origin;
+
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+  // Handle pre-flight request
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
 
 app.locals.SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 app.locals.clients = new Map();
