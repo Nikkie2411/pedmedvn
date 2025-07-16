@@ -13,6 +13,17 @@ const therapyRouter = require('./routes/therapy');
 
 const app = express();
 
+// CORS configuration - MUST be the first middleware
+const corsOptions = {
+  origin: 'https://pedmed-vnch.web.app',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  credentials: true,
+  optionsSuccessStatus: 204 // For pre-flight requests
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Explicitly handle pre-flight requests
+
 app.locals.SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 app.locals.clients = new Map();
 
@@ -20,23 +31,6 @@ async function startServer() {
   await initializeSheetsClient();
   app.locals.sheetsClient = require('./services/sheets').getSheetsClient();
   await loadUsernames();
-
-  // Debugging middleware to log CORS requests
-  app.use((req, res, next) => {
-    console.log(`CORS Debug: Origin - ${req.headers.origin}, Method - ${req.method}`);
-    next();
-  });
-
-  // Standard CORS configuration
-  app.use(cors({
-    origin: 'https://pedmed-vnch.web.app',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
-  }));
-
-  // Ensure preflight requests are handled
-  app.options('*', cors());
 
   app.use(express.json({ limit: '10kb' }));
   app.use(ensureSheetsClient);
