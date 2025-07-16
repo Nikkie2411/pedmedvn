@@ -21,6 +21,12 @@ async function startServer() {
   app.locals.sheetsClient = require('./services/sheets').getSheetsClient();
   await loadUsernames();
 
+  // Debugging middleware to log CORS requests
+  app.use((req, res, next) => {
+    console.log(`CORS Debug: Origin - ${req.headers.origin}, Method - ${req.method}`);
+    next();
+  });
+
   // Standard CORS configuration
   app.use(cors({
     origin: 'https://pedmed-vnch.web.app',
