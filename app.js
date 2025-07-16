@@ -21,41 +21,9 @@ async function startServer() {
   app.locals.sheetsClient = require('./services/sheets').getSheetsClient();
   await loadUsernames();
 
-  // Enhanced CORS configuration
-  app.use((req, res, next) => {
-    const allowedOrigins = [
-      'https://pedmed-vnch.web.app',
-      'https://pedmed-vnch.firebaseapp.com',
-      'http://localhost:3000',
-      'http://localhost:5500'
-    ];
-    
-    const origin = req.headers.origin;
-    if (allowedOrigins.includes(origin) || !origin) {
-      res.setHeader('Access-Control-Allow-Origin', origin || '*');
-    }
-    
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
-    
-    if (req.method === 'OPTIONS') {
-      res.status(200).end();
-      return;
-    }
-    
-    next();
-  });
-
-  app.use(cors({ 
-    origin: [
-      process.env.FRONTEND_URL || 'https://pedmed-vnch.web.app',
-      'https://pedmed-vnch.web.app',
-      'https://pedmed-vnch.firebaseapp.com',
-      'http://localhost:3000',
-      'http://localhost:5500'
-    ], 
+  // Standard CORS configuration
+  app.use(cors({
+    origin: 'https://pedmed-vnch.web.app',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
