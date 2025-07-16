@@ -28,6 +28,10 @@ async function startServer() {
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
   }));
+
+  // Ensure preflight requests are handled
+  app.options('*', cors());
+
   app.use(express.json({ limit: '10kb' }));
   app.use(ensureSheetsClient);
 
