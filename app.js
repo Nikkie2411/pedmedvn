@@ -69,6 +69,16 @@ startServer().catch(err => {
 });
 
 app.use((err, req, res, next) => {
+  // Always set CORS headers on error responses
+  const allowedOrigins = ['https://pedmed-vnch.web.app', 'http://localhost:8080', 'http://127.0.0.1:5500'];
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
   logger.error('Unhandled error', { error: err.stack });
   res.status(err.status || 500).json({ success: false, message: err.message || 'Server error' });
 });
