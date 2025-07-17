@@ -1,103 +1,64 @@
 const rateLimit = require('express-rate-limit');
-const NodeCache = require('node-cache');
+const logger = require('../utils/logger');
 
-// Custom store for better performance
-const rateLimitStore = new NodeCache({ 
-  stdTTL: 900, // 15 minutes
-  checkperiod: 300, // cleanup every 5 minutes
-  maxKeys: 10000
-});
-
-// Custom store implementation
-const customStore = {
-  incr: (key, cb) => {
-    const current = rateLimitStore.get(key) || 0;
-    const newValue = current + 1;
-    rateLimitStore.set(key, newValue, 900); // 15 minutes TTL
-    cb(null, newValue, new Date(Date.now() + 900000)); // current, resetTime
-  },
-  decrement: (key) => {
-    const current = rateLimitStore.get(key) || 0;
-    if (current > 0) {
-      rateLimitStore.set(key, current - 1, 900);
-    }
-  },
-  resetKey: (key) => {
-    rateLimitStore.del(key);
-  }
-};
-
+// Smart rate limiting with progressive delays
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 8, // Increased from 5 to 8 for better UX
-  store: customStore,
-  message: { 
-    success: false, 
-    message: "Quá nhiều lần thử đăng nhập. Vui lòng thử lại sau 15 phút!",
-    retryAfter: 15 * 60 // seconds
-  },
+  max: 7, // Increased from 5 to 7 attempts
+  message: { success: false, message: "Quá nhiều lần thử đăng nhập. Vui lòng thử lại sau 15 phút!" },
   keyGenerator: (req) => {
-    // Combine username and IP for better security
     const username = req.body?.username?.trim().toLowerCase() || 'unknown';
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
-    return `login:${username}:${ip}`;
+    const ip = req.ip || req.connection.remoteAddress;
+    return `login_${username}_${ip}`;
   },
   skipSuccessfulRequests: true,
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  skip: (req) => {
+    // Skip rate limiting for health checks
+    return req.path.includes('/health') || req.path.includes('/monitoring');
+  },
   handler: (req, res) => {
+    logger.warn(`Rate limit exceeded for login: ${req.body?.username || 'unknown'} from ${req.ip}`);
     res.status(429).json({ 
       success: false, 
       message: "Quá nhiều lần thử đăng nhập. Vui lòng thử lại sau 15 phút!",
-      retryAfter: 15 * 60,
-      timestamp: new Date().toISOString()
+      retryAfter: Math.ceil(15 * 60) // seconds
     });
   }
 });
 
-const otpLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 3, // More restrictive for OTP
-  store: customStore,
-  message: { 
-    success: false, 
-    message: "Quá nhiều lần gửi OTP. Vui lòng đợi 15 phút!",
-    retryAfter: 15 * 60
-  },
-  keyGenerator: (req) => {
-    const identifier = req.body?.username || req.body?.email || req.ip || 'unknown';
-    return `otp:${identifier}`;
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    res.status(429).json({
-      success: false,
-      message: "Quá nhiều lần gửi OTP. Vui lòng đợi 15 phút!",
-      retryAfter: 15 * 60,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// General API rate limiter
+// More lenient API rate limiting
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 100, // 100 requests per minute per IP
-  store: customStore,
-  keyGenerator: (req) => `api:${req.ip}`,
-  message: {
-    success: false,
-    message: "Quá nhiều requests. Vui lòng thử lại sau!",
-    retryAfter: 60
+  max: 100, // 100 requests per minute
+  message: { success: false, message: "Quá nhiều requests. Vui lòng thử lại sau!" },
+  keyGenerator: (req) => {
+    return req.ip || req.connection.remoteAddress;
+  },
+  skip: (req) => {
+    // Skip for monitoring endpoints
+    return req.path.includes('/health') || req.path.includes('/monitoring');
   },
   standardHeaders: true,
   legacyHeaders: false
 });
 
-module.exports = { 
-  loginLimiter, 
-  otpLimiter, 
-  apiLimiter,
-  rateLimitStore // Export for monitoring
-};
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 OTP attempts
+  message: { success: false, message: "Quá nhiều lần thử gửi OTP. Vui lòng đợi 15 phút!" },
+  keyGenerator: (req) => {
+    const username = req.body?.username?.trim().toLowerCase() || 'unknown';
+    const ip = req.ip || req.connection.remoteAddress;
+    return `otp_${username}_${ip}`;
+  },
+  handler: (req, res) => {
+    logger.warn(`OTP rate limit exceeded for: ${req.body?.username || 'unknown'} from ${req.ip}`);
+    res.status(429).json({ 
+      success: false, 
+      message: "Quá nhiều lần thử gửi OTP. Vui lòng đợi 15 phút!",
+      retryAfter: Math.ceil(15 * 60)
+    });
+  }
+});
+
+module.exports = { loginLimiter, otpLimiter, apiLimiter };

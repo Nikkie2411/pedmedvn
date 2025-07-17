@@ -1,225 +1,163 @@
 const express = require('express');
 const router = express.Router();
 const NodeCache = require('node-cache');
-const { getSheetsClient, batchGetSheetData, safeSheetOperation } = require('../services/sheets');
+const { getSheetsClient, callSheetsAPI } = require('../services/sheets');
 const logger = require('../utils/logger');
 const { ensureSheetsClient } = require('../middleware/auth');
+const { apiLimiter } = require('../middleware/rateLimit');
 
-// Enhanced caching system
-const drugCache = new NodeCache({ 
-  stdTTL: 1800, // 30 minutes for drug data
-  checkperiod: 300, // cleanup every 5 minutes
-  maxKeys: 200 
-});
+// Multi-tier caching for drug data
+const quickCache = new NodeCache({ stdTTL: 5 * 60, checkperiod: 60 }); // 5 minutes
+const longCache = new NodeCache({ stdTTL: 30 * 60, checkperiod: 300 }); // 30 minutes
 
-const searchCache = new NodeCache({ 
-  stdTTL: 600, // 10 minutes for search results
-  checkperiod: 120,
-  maxKeys: 500 
-});
-
-// Performance monitoring
-let requestCount = 0;
-let cacheHits = 0;
+// Apply API rate limiting
+router.use(apiLimiter);
 
 router.get('/drugs', ensureSheetsClient, async (req, res) => {
-    requestCount++;
     const startTime = Date.now();
-    
-    logger.info('Drug search request', { 
-      query: req.query, 
-      requestId: requestCount,
-      userAgent: req.get('User-Agent')?.substring(0, 50)
-    });
+    logger.info('🔍 Drug search request', { query: req.query, ip: req.ip });
     
     const { query, page: pageRaw = 1, limit: limitRaw = 10 } = req.query;
   
     const page = Math.max(1, parseInt(pageRaw) || 1);
-    const limit = Math.min(50, Math.max(1, parseInt(limitRaw) || 10)); // Cap at 50
+    const limit = Math.min(50, Math.max(1, parseInt(limitRaw) || 10)); // Max 50 results
   
-    const cacheKey = query ? `drugs_search_${query}_${page}_${limit}` : `drugs_all_${page}_${limit}`;
+    const cacheKey = query ? `drugs_search_${query.toLowerCase()}_${page}_${limit}` : `drugs_all_${page}_${limit}`;
 
     try {
-      // Check search cache first
-      let result = searchCache.get(cacheKey);
-      if (result) {
-        cacheHits++;
-        logger.debug('Search cache hit', { 
-          cacheKey, 
-          resultCount: result.data?.length,
-          responseTime: Date.now() - startTime 
-        });
-        return res.json(result);
-      }
-
-      // Check if we have full drug data in cache
-      let allDrugs = drugCache.get('all_drugs');
-      if (!allDrugs) {
-        logger.debug('Loading drugs from sheet...');
+      // Multi-tier cache check
+      let drugs = quickCache.get(cacheKey) || longCache.get(cacheKey);
+      
+      if (!drugs) {
+        logger.info('📦 Cache miss - fetching from Sheets');
         
-        // Use optimized sheet operation
-        const response = await safeSheetOperation(async () => {
-          const sheetsClient = req.app.locals.sheetsClient;
-          const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID;
-          
-          if (!sheetsClient || !SPREADSHEET_ID) {
-            throw new Error('Service not initialized');
-          }
-          
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 8000); // Reduced timeout
-          
-          try {
-            return await sheetsClient.spreadsheets.values.get({
-              spreadsheetId: SPREADSHEET_ID,
-              range: 'pedmedvnch',
-              signal: controller.signal,
-              majorDimension: 'ROWS',
-              valueRenderOption: 'UNFORMATTED_VALUE'
-            });
-          } finally {
-            clearTimeout(timeout);
-          }
+        const sheetsClient = req.app.locals.sheetsClient;
+        const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID;
+        
+        if (!sheetsClient || !SPREADSHEET_ID) {
+          return res.status(503).json({ 
+            success: false, 
+            message: 'Service temporarily unavailable',
+            code: 'SERVICE_UNAVAILABLE'
+          });
+        }
+
+        // Use enhanced Sheets API call with caching
+        const sheetsOperation = () => sheetsClient.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEET_ID,
+          range: 'pedmedvnch'
         });
 
-        const rows = response.data.values || [];
-        logger.debug('Raw sheet data loaded', { rowCount: rows.length });
-
-        // Optimized data processing
-        allDrugs = rows.slice(1)
-          .filter(row => row[2]) // Filter out empty active ingredient rows
+        const response = await callSheetsAPI(sheetsOperation, `sheets_data_pedmedvnch`, 15 * 60); // 15 min cache
+        const rows = response?.data?.values || [];
+        
+        if (rows.length === 0) {
+          return res.status(404).json({ 
+            success: false, 
+            message: 'No drug data available',
+            data: []
+          });
+        }
+  
+        // Process and structure the drug data
+        drugs = rows.slice(1)
           .map(row => ({
-            'Hoạt chất': row[2]?.toString().trim(),
-            'Cập nhật': row[3]?.toString().trim(),
-            'Phân loại dược lý': row[4]?.toString().trim(),
-            'Liều thông thường trẻ sơ sinh': row[5]?.toString().trim(),
-            'Liều thông thường trẻ em': row[6]?.toString().trim(),
-            'Hiệu chỉnh liều theo chức năng thận': row[7]?.toString().trim(),
-            'Hiệu chỉnh liều theo chức năng gan': row[8]?.toString().trim(),
-            'Chống chỉ định': row[9]?.toString().trim(),
-            'Tác dụng không mong muốn': row[10]?.toString().trim(),
-            'Cách dùng (ngoài IV)': row[11]?.toString().trim(),
-            'Tương tác thuốc chống chỉ định': row[12]?.toString().trim(),
-            'Ngộ độc/Quá liều': row[13]?.toString().trim(),
-            'Các thông số cần theo dõi': row[14]?.toString().trim(),
-            'Bảo hiểm y tế thanh toán': row[15]?.toString().trim(),
-          }));
+            'Hoạt chất': row[2] || '',
+            'Cập nhật': row[3] || '',
+            'Phân loại dược lý': row[4] || '',
+            'Liều thông thường trẻ sơ sinh': row[5] || '',
+            'Liều thông thường trẻ em': row[6] || '',
+            'Hiệu chỉnh liều theo chức năng thận': row[7] || '',
+            'Hiệu chỉnh liều theo chức năng gan': row[8] || '',
+            'Chống chỉ định': row[9] || '',
+            'Tác dụng không mong muốn': row[10] || '',
+            'Cách dùng (ngoài IV)': row[11] || '',
+            'Tương tác thuốc chống chỉ định': row[12] || '',
+            'Ngộ độc/Quá liều': row[13] || '',
+            'Các thông số cần theo dõi': row[14] || '',
+            'Bảo hiểm y tế thanh toán': row[15] || ''
+          }))
+          .filter(drug => drug['Hoạt chất']); // Remove empty entries
 
-        // Cache all drugs for 30 minutes
-        drugCache.set('all_drugs', allDrugs, 1800);
-        logger.info('Drugs cached successfully', { 
-          drugCount: allDrugs.length,
-          loadTime: Date.now() - startTime 
-        });
+        // Cache in both tiers
+        quickCache.set(cacheKey, drugs);
+        longCache.set(cacheKey, drugs);
+        
+        logger.info(`💾 Cached ${drugs.length} drugs for key: ${cacheKey}`);
+      } else {
+        logger.info('✅ Cache hit - using cached data');
       }
 
-      // Process search query with optimized filtering
-      let filteredDrugs = allDrugs;
+      // Filter data if query provided
+      let resultDrugs = drugs;
       if (query) {
         const searchTerm = query.toLowerCase().trim();
-        filteredDrugs = allDrugs.filter(drug => {
-          const activeIngredient = drug['Hoạt chất']?.toLowerCase() || '';
-          return activeIngredient.includes(searchTerm);
-        });
+        resultDrugs = drugs.filter(drug =>
+          drug['Hoạt chất']?.toLowerCase().includes(searchTerm)
+        );
       }
 
-      // Implement pagination
-      const totalCount = filteredDrugs.length;
+      // Pagination
       const start = (page - 1) * limit;
-      const paginatedDrugs = filteredDrugs.slice(start, start + limit);
-
-      result = {
-        success: true,
-        data: paginatedDrugs,
-        pagination: {
-          page,
-          limit,
-          total: totalCount,
-          totalPages: Math.ceil(totalCount / limit),
-          hasNext: start + limit < totalCount,
-          hasPrev: page > 1
-        },
-        meta: {
-          cacheHit: false,
-          responseTime: Date.now() - startTime,
-          requestId: requestCount
-        }
-      };
-
-      // Cache search results for 10 minutes
-      searchCache.set(cacheKey, result, 600);
+      const paginatedResults = resultDrugs.slice(start, start + limit);
       
-      logger.info('Drug search completed', {
+      const responseTime = Date.now() - startTime;
+      logger.info(`🏁 Drug search completed in ${responseTime}ms`, {
         query,
-        resultCount: paginatedDrugs.length,
-        totalCount,
-        responseTime: result.meta.responseTime,
-        cached: false
+        total: resultDrugs.length,
+        returned: paginatedResults.length,
+        page,
+        cached: drugs === quickCache.get(cacheKey) || drugs === longCache.get(cacheKey)
       });
 
-      return res.json(result);
+      res.json({
+        success: true,
+        total: resultDrugs.length,
+        page,
+        limit,
+        data: paginatedResults,
+        responseTime: `${responseTime}ms`
+      });
 
     } catch (error) {
-      logger.error('Drug search error:', error.message);
+      const responseTime = Date.now() - startTime;
+      logger.error('❌ Error fetching drug data:', error);
       
-      // Return appropriate error response
-      if (error.name === 'AbortError') {
-        return res.status(408).json({ 
-          success: false, 
-          error: 'Request timeout - server quá chậm' 
+      // Try to return stale cache data
+      const staleData = longCache.get(cacheKey);
+      if (staleData) {
+        logger.warn('🔄 Returning stale cache data due to error');
+        return res.json({
+          success: true,
+          total: staleData.length,
+          page,
+          limit,
+          data: staleData.slice((page - 1) * limit, page * limit),
+          warning: 'Data may be outdated',
+          responseTime: `${responseTime}ms`
         });
       }
       
       res.status(500).json({ 
-        success: false, 
-        error: 'Không thể lấy dữ liệu thuốc',
-        meta: {
-          responseTime: Date.now() - startTime,
-          requestId: requestCount
-        }
+        success: false,
+        error: 'Unable to fetch drug data',
+        message: 'Temporary server error. Please try again.',
+        responseTime: `${responseTime}ms`
       });
     }
 });
 
-// Cache management endpoints
-router.get('/drugs/cache-stats', (req, res) => {
-  res.json({
-    success: true,
-    stats: {
-      drugCache: drugCache.getStats(),
-      searchCache: searchCache.getStats(),
-      performance: {
-        totalRequests: requestCount,
-        cacheHits,
-        cacheHitRate: requestCount > 0 ? (cacheHits / requestCount * 100).toFixed(2) + '%' : '0%'
-      }
+router.get('/drugs/invalidate-cache', ensureSheetsClient, async (req, res) => {
+    cache.del('all_drugs');
+    const wss = req.app.locals.wss;
+  if (wss) {
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ action: 'cache_invalidated' }));
     }
   });
-});
-
-router.post('/drugs/invalidate-cache', ensureSheetsClient, async (req, res) => {
-    // Clear all caches
-    drugCache.flushAll();
-    searchCache.flushAll();
-    
-    const wss = req.app.locals.wss;
-    if (wss) {
-      wss.clients.forEach(client => {
-        if (client.readyState === 1) { // WebSocket.OPEN
-          client.send(JSON.stringify({ 
-            action: 'cache_invalidated',
-            timestamp: new Date().toISOString()
-          }));
-        }
-      });
-    }
-    
-    logger.info('All drug caches invalidated');
-    res.json({ 
-      success: true, 
-      message: 'Cache đã được làm mới',
-      timestamp: new Date().toISOString()
-    });
+  }
+  res.json({ success: true, message: 'Cache đã được làm mới' });
 });
 
 module.exports = router;
