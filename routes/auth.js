@@ -3,13 +3,34 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const NodeCache = require('node-cache');
 const { loginLimiter } = require('../middleware/rateLimit');
-const { getSheetsClient } = require('../services/sheets');
+const { getSheetsClient, batchGetSheetData, safeSheetOperation } = require('../services/sheets');
 const { sendRegistrationEmail, sendApprovalEmail  } = require('../services/email');
 const logger = require('../utils/logger');
 const { isValidEmail, isValidPhone } = require('../utils/validation');
 
+// Enhanced cache with different TTLs for different data types
+const cache = new NodeCache({ 
+  stdTTL: 1800, // 30 minutes default
+  checkperiod: 300, // cleanup every 5 minutes
+  maxKeys: 500 // limit memory usage
+});
+
+// User cache with shorter TTL for security
+const userCache = new NodeCache({ 
+  stdTTL: 600, // 10 minutes
+  checkperiod: 120,
+  maxKeys: 200
+});
+
+// Device cache
+const deviceCache = new NodeCache({ 
+  stdTTL: 3600, // 1 hour
+  checkperiod: 300,
+  maxKeys: 1000
+});
+
 // Khởi tạo cache
-const cache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
+// const cache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
 
 // Trong file router (ví dụ: routes/auth.js)
 router.get('/ping', (req, res) => {
@@ -19,28 +40,42 @@ router.get('/ping', (req, res) => {
 
 router.post('/login', loginLimiter, async (req, res, next) => {
   const { username, password, deviceId, deviceName } = req.body;
-    logger.info('Login request received', { username, deviceId, deviceName });
+  logger.info('Login attempt', { username, deviceId, deviceName });
   
-    if (!username || !password || !deviceId) {
-      return res.status(400).json({ success: false, message: "Thiếu thông tin đăng nhập!" });
-    }
+  if (!username || !password || !deviceId) {
+    return res.status(400).json({ success: false, message: "Thiếu thông tin đăng nhập!" });
+  }
 
-    const sheetsClient = req.app.locals.sheetsClient;
-    const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID;
-    if (!sheetsClient || !SPREADSHEET_ID) {
-      return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
-    }
-  
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    try {
-      const response = await sheetsClient.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: 'Accounts',
-        signal: controller.signal
+  const sheetsClient = req.app.locals.sheetsClient;
+  const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID;
+  if (!sheetsClient || !SPREADSHEET_ID) {
+    return res.status(503).json({ success: false, message: 'Service unavailable, server not initialized' });
+  }
+
+  try {
+    // Check user cache first
+    const userCacheKey = `user:${username}`;
+    let userData = userCache.get(userCacheKey);
+    
+    if (!userData) {
+      // Use optimized sheet operation with timeout
+      const response = await safeSheetOperation(async () => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000); // Reduced timeout
+        
+        try {
+          return await sheetsClient.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'Accounts',
+            signal: controller.signal,
+            majorDimension: 'ROWS',
+            valueRenderOption: 'UNFORMATTED_VALUE'
+          });
+        } finally {
+          clearTimeout(timeout);
+        }
       });
-      clearTimeout(timeout);
-  
+
       const rows = response.data.values;
       const headers = rows[0];
       const usernameIndex = headers.indexOf("Username");
@@ -50,68 +85,97 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       const device1NameIndex = headers.indexOf("Device_1_Name");
       const device2IdIndex = headers.indexOf("Device_2_ID");
       const device2NameIndex = headers.indexOf("Device_2_Name");
-  
+
       if ([usernameIndex, passwordIndex, approvedIndex, device1IdIndex, device1NameIndex, device2IdIndex, device2NameIndex].includes(-1)) {
         return res.status(500).json({ success: false, message: "Lỗi cấu trúc Google Sheets!" });
       }
-  
+
       const userRowIndex = rows.findIndex(row => row[usernameIndex] === username);
       if (userRowIndex === -1) {
         return res.status(401).json({ success: false, message: "Tài khoản hoặc mật khẩu chưa đúng!" });
       }
-  
+
       const user = rows[userRowIndex];
-      const isPasswordValid = await bcrypt.compare(password.trim(), user[passwordIndex]?.trim() || '');
-      if (!isPasswordValid) {
-        return res.status(401).json({ success: false, message: "Tài khoản hoặc mật khẩu chưa đúng!" });
-      }
-  
-      if (user[approvedIndex]?.trim().toLowerCase() !== "đã duyệt") {
-        return res.status(403).json({ success: false, message: "Tài khoản chưa được phê duyệt bởi quản trị viên." });
-      }
-  
-      let currentDevices = [
-        { id: user[device1IdIndex], name: user[device1NameIndex] },
-        { id: user[device2IdIndex], name: user[device2NameIndex] }
-      ].filter(d => d.id);
-  
-      if (currentDevices.some(d => d.id === deviceId)) {
-        return res.status(200).json({ success: true, message: "Đăng nhập thành công!" });
-      }
-  
-      if (currentDevices.length >= 2) {
-        return res.status(403).json({
-          success: false,
-          message: "Tài khoản đã đăng nhập trên 2 thiết bị. Vui lòng chọn thiết bị cần đăng xuất.",
-          devices: currentDevices.map(d => ({ id: d.id, name: d.name })) // Trả về cả id và name
-        });
-      }
-  
-      currentDevices.push({ id: deviceId, name: deviceName });
-      currentDevices = currentDevices.slice(-2);
-  
+      userData = {
+        username,
+        hashedPassword: user[passwordIndex]?.trim() || '',
+        approved: user[approvedIndex]?.trim().toLowerCase(),
+        devices: [
+          { id: user[device1IdIndex], name: user[device1NameIndex] },
+          { id: user[device2IdIndex], name: user[device2NameIndex] }
+        ].filter(d => d.id),
+        rowIndex: userRowIndex
+      };
+      
+      // Cache user data for 10 minutes
+      userCache.set(userCacheKey, userData, 600);
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password.trim(), userData.hashedPassword);
+    if (!isPasswordValid) {
+      return res.status(401).json({ success: false, message: "Tài khoản hoặc mật khẩu chưa đúng!" });
+    }
+
+    if (userData.approved !== "đã duyệt") {
+      return res.status(403).json({ success: false, message: "Tài khoản chưa được phê duyệt bởi quản trị viên." });
+    }
+
+    // Check device authorization
+    if (userData.devices.some(d => d.id === deviceId)) {
+      // Cache successful login
+      deviceCache.set(`auth:${username}:${deviceId}`, true, 3600);
+      return res.status(200).json({ success: true, message: "Đăng nhập thành công!" });
+    }
+
+    // Handle device limit
+    if (userData.devices.length >= 2) {
+      return res.status(403).json({
+        success: false,
+        message: "Tài khoản đã đăng nhập trên 2 thiết bị. Vui lòng chọn thiết bị cần đăng xuất.",
+        devices: userData.devices.map(d => ({ id: d.id, name: d.name }))
+      });
+    }
+
+    // Add new device
+    const newDevices = [...userData.devices, { id: deviceId, name: deviceName }].slice(-2);
+    
+    // Update sheet with new device
+    await safeSheetOperation(async () => {
+      const headers = ['Device_1_ID', 'Device_1_Name', 'Device_2_ID', 'Device_2_Name'];
       const values = [
-        currentDevices[0]?.id || "",
-        currentDevices[0]?.name || "",
-        currentDevices[1]?.id || "",
-        currentDevices[1]?.name || ""
+        newDevices[0]?.id || "",
+        newDevices[0]?.name || "",
+        newDevices[1]?.id || "",
+        newDevices[1]?.name || ""
       ];
-  
-      // Tính range động dựa trên chỉ số cột
-      const startCol = String.fromCharCode(65 + device1IdIndex); // Ví dụ: L (11 -> 76)
-      const endCol = String.fromCharCode(65 + device2NameIndex); // Ví dụ: O (14 -> 79)
+
+      // Update sheet
       await sheetsClient.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
-        range: `Accounts!${startCol}${userRowIndex + 1}:${endCol}${userRowIndex + 1}`,
+        range: `Accounts!L${userData.rowIndex + 1}:O${userData.rowIndex + 1}`,
         valueInputOption: "RAW",
         resource: { values: [values] }
       });
-      return res.status(200).json({ success: true, message: "Đăng nhập thành công và thiết bị đã được lưu!" });
-    } catch (error) {
-      clearTimeout(timeout);
-      logger.error('Lỗi khi kiểm tra tài khoản:', error);
-      next(error);
+    });
+    
+    // Update cache with new device data
+    userData.devices = newDevices;
+    userCache.set(userCacheKey, userData, 600);
+    deviceCache.set(`auth:${username}:${deviceId}`, true, 3600);
+    
+    return res.status(200).json({ success: true, message: "Đăng nhập thành công và thiết bị đã được lưu!" });
+    
+  } catch (error) {
+    logger.error('Login error:', error.message);
+    
+    // Return appropriate error based on type
+    if (error.name === 'AbortError') {
+      return res.status(408).json({ success: false, message: "Kết nối quá chậm, vui lòng thử lại!" });
     }
+    
+    next(error);
+  }
 });
 
 router.post('/register', async (req, res, next) => {
