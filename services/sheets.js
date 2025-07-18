@@ -121,11 +121,18 @@ async function callSheetsAPI(operation, cacheKey = null, cacheTTL = 300) {
       logger.info(`🔄 Sheets API call attempt ${attempt}/${MAX_RETRIES}`);
       const result = await operation();
       
-      // Cache successful results
+      // Cache successful results - only cache the data part to avoid serialization issues
       if (cacheKey && result) {
-        fastCache.set(cacheKey, result, cacheTTL);
+        // Extract only serializable data
+        const cacheableResult = {
+          data: result.data,
+          status: result.status,
+          statusText: result.statusText
+        };
+        
+        fastCache.set(cacheKey, cacheableResult, cacheTTL);
         if (cacheTTL > 300) { // Only cache in slow cache for longer TTL
-          slowCache.set(cacheKey, result, cacheTTL);
+          slowCache.set(cacheKey, cacheableResult, cacheTTL);
         }
         logger.info(`💾 Cached result for ${cacheKey}`);
       }
