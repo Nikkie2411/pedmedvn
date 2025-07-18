@@ -57,14 +57,20 @@ router.post('/login', loginLimiter, async (req, res, next) => {
   }
 
   try {
+    // Add timeout for the operation
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
     // Use enhanced Sheets API call with caching
     const cacheKey = `accounts_data`;
     const sheetsOperation = () => sheetsClient.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Accounts'
+      range: 'Accounts',
+      signal: controller.signal
     });
 
     const response = await callSheetsAPI(sheetsOperation, cacheKey, 5 * 60); // 5 minute cache
+    clearTimeout(timeout);
   
       const rows = response.data.values;
       const headers = rows[0];
@@ -77,43 +83,70 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       const device2NameIndex = headers.indexOf("Device_2_Name");
   
       if ([usernameIndex, passwordIndex, approvedIndex, device1IdIndex, device1NameIndex, device2IdIndex, device2NameIndex].includes(-1)) {
-        return res.status(500).json({ success: false, message: "Lỗi cấu trúc Google Sheets!" });
+        return res.status(500).json({ 
+          success: false, 
+          data: { success: false, message: "Lỗi cấu trúc Google Sheets!" }
+        });
       }
   
       const userRowIndex = rows.findIndex(row => row[usernameIndex] === username);
       if (userRowIndex === -1) {
-        return res.status(401).json({ success: false, message: "Tài khoản hoặc mật khẩu chưa đúng!" });
+        return res.status(401).json({ 
+          success: false, 
+          data: { success: false, message: "Tài khoản hoặc mật khẩu chưa đúng!" }
+        });
       }
   
       const user = rows[userRowIndex];
       const isPasswordValid = await bcrypt.compare(password.trim(), user[passwordIndex]?.trim() || '');
       if (!isPasswordValid) {
-        return res.status(401).json({ success: false, message: "Tài khoản hoặc mật khẩu chưa đúng!" });
-      }
-  
-      if (user[approvedIndex]?.trim().toLowerCase() !== "đã duyệt") {
-        return res.status(403).json({ success: false, message: "Tài khoản chưa được phê duyệt bởi quản trị viên." });
-      }
-  
-      let currentDevices = [
-        { id: user[device1IdIndex], name: user[device1NameIndex] },
-        { id: user[device2IdIndex], name: user[device2NameIndex] }
-      ].filter(d => d.id);
-  
-      if (currentDevices.some(d => d.id === deviceId)) {
-        return res.status(200).json({ success: true, message: "Đăng nhập thành công!" });
-      }
-  
-      if (currentDevices.length >= 2) {
-        return res.status(403).json({
-          success: false,
-          message: "Tài khoản đã đăng nhập trên 2 thiết bị. Vui lòng chọn thiết bị cần đăng xuất.",
-          devices: currentDevices.map(d => ({ id: d.id, name: d.name })) // Trả về cả id và name
+        return res.status(401).json({ 
+          success: false, 
+          data: { success: false, message: "Tài khoản hoặc mật khẩu chưa đúng!" }
         });
       }
   
+      if (user[approvedIndex]?.trim().toLowerCase() !== "đã duyệt") {
+        return res.status(403).json({ 
+          success: false, 
+          data: { success: false, message: "Tài khoản chưa được phê duyệt bởi quản trị viên." }
+        });
+      }
+  
+      // Get current devices for this user
+      let currentDevices = [
+        { id: user[device1IdIndex], name: user[device1NameIndex] },
+        { id: user[device2IdIndex], name: user[device2NameIndex] }
+      ].filter(d => d.id && d.id.trim() !== '');
+  
+      logger.info(`📱 Current devices for ${username}:`, currentDevices);
+      logger.info(`📱 Login attempt from device: ${deviceId} (${deviceName})`);
+  
+      // If device already exists, just return success
+      if (currentDevices.some(d => d.id === deviceId)) {
+        logger.info(`✅ Device ${deviceId} already registered for ${username}`);
+        return res.status(200).json({ 
+          success: true, 
+          data: { success: true, message: "Đăng nhập thành công!" }
+        });
+      }
+  
+      // If user has 2 devices, ask which one to logout
+      if (currentDevices.length >= 2) {
+        logger.info(`⚠️ User ${username} has max devices, need to choose logout`);
+        return res.status(403).json({
+          success: false,
+          data: {
+            success: false,
+            message: "Tài khoản đã đăng nhập trên 2 thiết bị. Vui lòng chọn thiết bị cần đăng xuất.",
+            devices: currentDevices.map(d => ({ id: d.id, name: d.name }))
+          }
+        });
+      }
+  
+      // Add new device
       currentDevices.push({ id: deviceId, name: deviceName });
-      currentDevices = currentDevices.slice(-2);
+      currentDevices = currentDevices.slice(-2); // Keep only last 2 devices
   
       const values = [
         currentDevices[0]?.id || "",
@@ -122,16 +155,26 @@ router.post('/login', loginLimiter, async (req, res, next) => {
         currentDevices[1]?.name || ""
       ];
   
-      // Tính range động dựa trên chỉ số cột
-      const startCol = String.fromCharCode(65 + device1IdIndex); // Ví dụ: L (11 -> 76)
-      const endCol = String.fromCharCode(65 + device2NameIndex); // Ví dụ: O (14 -> 79)
+      logger.info(`📱 Updating devices for ${username}:`, values);
+  
+      // Calculate dynamic range based on column indices
+      const startCol = String.fromCharCode(65 + device1IdIndex);
+      const endCol = String.fromCharCode(65 + device2NameIndex);
+      
       await sheetsClient.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
         range: `Accounts!${startCol}${userRowIndex + 1}:${endCol}${userRowIndex + 1}`,
         valueInputOption: "RAW",
         resource: { values: [values] }
       });
-      return res.status(200).json({ success: true, message: "Đăng nhập thành công và thiết bị đã được lưu!" });
+      
+      logger.info(`✅ Device ${deviceId} successfully registered for ${username}`);
+      
+      return res.status(200).json({ 
+        success: true, 
+        data: { success: true, message: "Đăng nhập thành công và thiết bị đã được lưu!" }
+      });
+      
     } catch (error) {
       clearTimeout(timeout);
       logger.error('Lỗi khi kiểm tra tài khoản:', error);
@@ -562,6 +605,82 @@ router.post('/check-approval', async (req, res, next) => {
     res.json({ success: true, message: "Kiểm tra và gửi email hoàn tất" });
   } catch (error) {
     logger.error("Lỗi khi kiểm tra phê duyệt:", error);
+    next(error);
+  }
+});
+
+// Log device info endpoint
+router.post('/log-device', async (req, res, next) => {
+  try {
+    const { username, deviceId, deviceName, timestamp, action } = req.body;
+    
+    logger.info('📱 Device logging request', { 
+      username: username?.substring(0, 3) + '***', 
+      deviceId,
+      deviceName,
+      action,
+      ip: req.ip
+    });
+    
+    if (!username || !deviceId || !deviceName) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Missing device information" 
+      });
+    }
+
+    const sheetsClient = req.app.locals.sheetsClient;
+    const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID;
+    
+    if (!sheetsClient || !SPREADSHEET_ID) {
+      logger.error('❌ Sheets client or spreadsheet ID not available');
+      return res.status(500).json({ 
+        success: false, 
+        message: "Service configuration error" 
+      });
+    }
+
+    // Prepare device log data
+    const deviceLogData = [
+      new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
+      username,
+      deviceId,
+      deviceName,
+      action || 'login',
+      req.ip,
+      timestamp || new Date().toISOString()
+    ];
+
+    try {
+      // Log to a separate sheet or add to existing login log
+      await callSheetsAPI(sheetsClient, 'append', {
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'Device_Logs!A:G', // Assuming a Device_Logs sheet exists
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [deviceLogData]
+        }
+      });
+
+      logger.info('✅ Device info logged successfully', { deviceId, username: username?.substring(0, 3) + '***' });
+      
+      res.json({ 
+        success: true, 
+        message: "Device information logged successfully" 
+      });
+
+    } catch (sheetsError) {
+      logger.error('❌ Failed to log device info to sheets:', sheetsError);
+      
+      // Still return success to not block the login flow
+      res.json({ 
+        success: true, 
+        message: "Device logged locally" 
+      });
+    }
+
+  } catch (error) {
+    logger.error('❌ Device logging error:', error);
     next(error);
   }
 });
