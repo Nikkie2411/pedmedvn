@@ -56,11 +56,11 @@ router.post('/login', loginLimiter, async (req, res, next) => {
     });
   }
 
-  try {
-    // Add timeout for the operation
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+  // Add timeout for the operation
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
+  try {
     // Use enhanced Sheets API call with caching
     const cacheKey = `accounts_data`;
     const sheetsOperation = () => sheetsClient.spreadsheets.values.get({
@@ -218,6 +218,7 @@ router.post('/register', async (req, res, next) => {
   
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
+    
     try {
         const response = await sheetsClient.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
