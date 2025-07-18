@@ -654,7 +654,7 @@ router.post('/log-device', async (req, res, next) => {
 
     try {
       // Log to a separate sheet or add to existing login log
-      await callSheetsAPI(sheetsClient, 'append', {
+      const operation = () => sheetsClient.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
         range: 'Device_Logs!A:G', // Assuming a Device_Logs sheet exists
         valueInputOption: 'RAW',
@@ -662,6 +662,8 @@ router.post('/log-device', async (req, res, next) => {
           values: [deviceLogData]
         }
       });
+
+      await callSheetsAPI(operation, null, 0); // No caching for logs
 
       logger.info('✅ Device info logged successfully', { deviceId, username: username?.substring(0, 3) + '***' });
       
