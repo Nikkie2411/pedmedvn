@@ -113,11 +113,19 @@ router.post('/login', loginLimiter, async (req, res, next) => {
         });
       }
   
-      // Get current devices for this user
-      let currentDevices = [
-        { id: user[device1IdIndex], name: user[device1NameIndex] },
-        { id: user[device2IdIndex], name: user[device2NameIndex] }
-      ].filter(d => d.id && d.id.trim() !== '');
+      // Get current devices for this user - FIX: Better filtering
+      let device1Id = user[device1IdIndex] || "";
+      let device1Name = user[device1NameIndex] || "";
+      let device2Id = user[device2IdIndex] || "";
+      let device2Name = user[device2NameIndex] || "";
+      
+      let currentDevices = [];
+      if (device1Id && device1Id.trim() !== '') {
+        currentDevices.push({ id: device1Id.trim(), name: device1Name || "" });
+      }
+      if (device2Id && device2Id.trim() !== '') {
+        currentDevices.push({ id: device2Id.trim(), name: device2Name || "" });
+      }
   
       logger.info(`📱 Current devices for ${username}:`, currentDevices);
       logger.info(`📱 Login attempt from device: ${deviceId} (${deviceName})`);
@@ -127,39 +135,37 @@ router.post('/login', loginLimiter, async (req, res, next) => {
         logger.info(`✅ Device ${deviceId} already registered for ${username}`);
         return res.status(200).json({ 
           success: true, 
-          data: { success: true, message: "Đăng nhập thành công!" }
+          message: "Đăng nhập thành công!"
         });
       }
   
-      // If user has 2 devices, ask which one to logout
+      // CHẶN CỨNG: If user has 2 devices, BLOCK new device completely
       if (currentDevices.length >= 2) {
-        logger.info(`⚠️ User ${username} has max devices, need to choose logout`);
+        logger.warn(`🚫 DEVICE LIMIT EXCEEDED for ${username}. Current: ${currentDevices.length}, Attempting: ${deviceId}`);
         return res.status(403).json({
           success: false,
-          message: "Tài khoản đã đăng nhập trên 2 thiết bị. Vui lòng chọn thiết bị cần đăng xuất.",
+          message: "Tài khoản đã đăng nhập trên 2 thiết bị. Vui lòng đăng xuất một thiết bị trước khi đăng nhập thiết bị mới.",
           devices: currentDevices.map(d => ({ id: d.id, name: d.name })),
           code: 'DEVICE_LIMIT_EXCEEDED'
         });
       }
 
-      // Logic cập nhật device chính xác
-      let device1Id = user[device1IdIndex] || "";
-      let device1Name = user[device1NameIndex] || "";
-      let device2Id = user[device2IdIndex] || "";
-      let device2Name = user[device2NameIndex] || "";
-
-      // Nếu device 1 trống, gán vào device 1
-      if (!device1Id) {
+      // Only allow adding device if there's space
+      if (currentDevices.length === 0) {
+        // Add to device 1 slot
         device1Id = deviceId;
         device1Name = deviceName;
-      }
-      // Nếu device 1 đã có nhưng device 2 trống, gán vào device 2
-      else if (!device2Id) {
+        logger.info(`📱 Adding device to slot 1: ${deviceId}`);
+      } else if (currentDevices.length === 1) {
+        // Add to device 2 slot
         device2Id = deviceId;
         device2Name = deviceName;
+        logger.info(`📱 Adding device to slot 2: ${deviceId}`);
       }
 
-      const values = [device1Id, device1Name, device2Id, device2Name];      logger.info(`📱 Updating devices for ${username}:`, values);
+      const values = [device1Id, device1Name, device2Id, device2Name];
+      
+      logger.info(`📱 Updating devices for ${username}:`, values);
   
       // Calculate dynamic range based on column indices
       const startCol = String.fromCharCode(65 + device1IdIndex);
@@ -176,7 +182,7 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       
       return res.status(200).json({ 
         success: true, 
-        data: { success: true, message: "Đăng nhập thành công và thiết bị đã được lưu!" }
+        message: "Đăng nhập thành công và thiết bị đã được lưu!"
       });
       
     } catch (error) {
