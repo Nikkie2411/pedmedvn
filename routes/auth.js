@@ -410,6 +410,21 @@ router.post('/check-session', async (req, res, next) => {
 
     if (!currentDevices.includes(deviceId)) {
       console.log("⚠️ Thiết bị không còn hợp lệ, cần đăng xuất!");
+      
+      // Send real-time notification via WebSocket
+      const clients = getClients();
+      const clientKey = `${username}_${deviceId}`;
+      const client = clients.get(clientKey);
+      
+      if (client && client.readyState === 1) { // WebSocket.OPEN
+        client.send(JSON.stringify({
+          type: 'FORCE_LOGOUT',
+          message: 'Thiết bị của bạn đã bị xóa khỏi danh sách. Đăng xuất ngay lập tức!',
+          timestamp: new Date().toISOString()
+        }));
+        logger.info(`📡 Sent force logout notification to ${clientKey}`);
+      }
+      
       return res.json({ success: false, message: "Thiết bị của bạn đã bị đăng xuất!" });
     }
 
@@ -746,6 +761,48 @@ router.post('/replace-device-and-login', async (req, res, next) => {
   } catch (error) {
     clearTimeout(timeout);
     logger.error('Lỗi khi thay thế thiết bị:', error);
+    next(error);
+  }
+});
+
+// Admin endpoint to notify and force logout devices
+router.post('/admin/force-logout-device', async (req, res, next) => {
+  const { username, deviceId, reason = 'Device removed by admin' } = req.body;
+  
+  if (!username || !deviceId) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "Missing username or deviceId" 
+    });
+  }
+  
+  try {
+    // Send WebSocket notification
+    const clients = getClients();
+    const clientKey = `${username}_${deviceId}`;
+    const client = clients.get(clientKey);
+    
+    if (client && client.readyState === 1) { // WebSocket.OPEN
+      client.send(JSON.stringify({
+        type: 'FORCE_LOGOUT',
+        message: `Thiết bị của bạn đã bị xóa: ${reason}`,
+        timestamp: new Date().toISOString()
+      }));
+      
+      logger.info(`📡 Admin force logout notification sent to ${clientKey}`);
+      
+      res.json({ 
+        success: true, 
+        message: `Force logout notification sent to ${username}` 
+      });
+    } else {
+      res.json({ 
+        success: false, 
+        message: `Device ${deviceId} for user ${username} is not connected` 
+      });
+    }
+  } catch (error) {
+    logger.error("❌ Error in admin force logout:", error);
     next(error);
   }
 });
