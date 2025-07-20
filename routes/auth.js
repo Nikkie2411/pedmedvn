@@ -634,9 +634,9 @@ router.post('/check-approval', async (req, res, next) => {
 router.post('/replace-device-and-login', async (req, res, next) => {
   logger.info('Request received for /api/replace-device-and-login', { body: req.body });
   
-  const { username, password, logoutDeviceId, newDeviceId, newDeviceName } = req.body;
+  const { username, password, oldDeviceId, newDeviceId, newDeviceName } = req.body;
   
-  if (!username || !password || !logoutDeviceId || !newDeviceId || !newDeviceName) {
+  if (!username || !password || !oldDeviceId || !newDeviceId || !newDeviceName) {
     return res.status(400).json({ 
       success: false, 
       message: "Thiếu thông tin cần thiết!" 
@@ -694,8 +694,8 @@ router.post('/replace-device-and-login', async (req, res, next) => {
     let device2Name = user[device2NameIndex] || "";
 
     // Send logout notification to the device being replaced
-    const clients = req.app.locals.clients;
-    const logoutClientKey = `${username}_${logoutDeviceId}`;
+    const clients = getClients();
+    const logoutClientKey = `${username}_${oldDeviceId}`;
     const logoutClient = clients.get(logoutClientKey);
     
     if (logoutClient && logoutClient.readyState === WebSocket.OPEN) {
@@ -707,14 +707,14 @@ router.post('/replace-device-and-login', async (req, res, next) => {
     }
 
     // Replace the device
-    if (device1Id === logoutDeviceId) {
+    if (device1Id === oldDeviceId) {
       device1Id = newDeviceId;
       device1Name = newDeviceName;
-      logger.info(`Replaced device 1: ${logoutDeviceId} → ${newDeviceId}`);
-    } else if (device2Id === logoutDeviceId) {
+      logger.info(`Replaced device 1: ${oldDeviceId} → ${newDeviceId}`);
+    } else if (device2Id === oldDeviceId) {
       device2Id = newDeviceId;
       device2Name = newDeviceName;
-      logger.info(`Replaced device 2: ${logoutDeviceId} → ${newDeviceId}`);
+      logger.info(`Replaced device 2: ${oldDeviceId} → ${newDeviceId}`);
     } else {
       return res.status(400).json({ 
         success: false, 
@@ -734,12 +734,12 @@ router.post('/replace-device-and-login', async (req, res, next) => {
       resource: { values: [values] }
     });
 
-    logger.info(`✅ Device replaced successfully for ${username}: ${logoutDeviceId} → ${newDeviceId}`);
+    logger.info(`✅ Device replaced successfully for ${username}: ${oldDeviceId} → ${newDeviceId}`);
     
     return res.status(200).json({
       success: true,
       message: "Đăng xuất thiết bị cũ và đăng nhập thiết bị mới thành công!",
-      replacedDevice: logoutDeviceId,
+      replacedDevice: oldDeviceId,
       newDevice: newDeviceId
     });
 
