@@ -167,15 +167,18 @@ router.post('/login', loginLimiter, async (req, res, next) => {
         device1Name = deviceName;
         logger.info(`📱 Adding device to slot 1: ${deviceId}`);
       } else if (currentDevices.length === 1) {
-        // Add to device 2 slot
+        // Add to device 2 slot - keep device 1 unchanged
         device2Id = deviceId;
         device2Name = deviceName;
-        logger.info(`📱 Adding device to slot 2: ${deviceId}`);
+        logger.info(`📱 Adding device to slot 2: ${deviceId}, keeping device 1: ${device1Id}`);
       }
 
       const values = [device1Id, device1Name, device2Id, device2Name];
       
-      logger.info(`📱 Updating devices for ${username}:`, values);
+      logger.info(`📱 Final device values for ${username}:`, {
+        device1: { id: device1Id, name: device1Name },
+        device2: { id: device2Id, name: device2Name }
+      });
   
       // Calculate dynamic range based on column indices
       const startCol = String.fromCharCode(65 + device1IdIndex);
