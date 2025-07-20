@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "build": "echo 'Build completed'",
+    "build": "npm rebuild bcrypt --build-from-source",
+    "postinstall": "npm rebuild bcrypt --build-from-source",
     "prod": "NODE_ENV=production pm2 start app.js --name pedmedvn-backend",
     "deploy": "railway up",
     "logs": "railway logs",
