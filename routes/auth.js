@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const NodeCache = require('node-cache');
+const WebSocket = require('ws');
 const { loginLimiter, apiLimiter } = require('../middleware/rateLimit');
 const { getSheetsClient, callSheetsAPI } = require('../services/sheets');
 const { sendRegistrationEmail, sendApprovalEmail } = require('../services/email');
+const { getClients } = require('../websocket/websocket');
 const logger = require('../utils/logger');
 const { isValidEmail, isValidPhone } = require('../utils/validation');
 
@@ -139,14 +141,22 @@ router.post('/login', loginLimiter, async (req, res, next) => {
         });
       }
   
-      // CHẶN CỨNG: If user has 2 devices, BLOCK new device completely
+      // If user has 2 devices, show device selection popup
       if (currentDevices.length >= 2) {
-        logger.warn(`🚫 DEVICE LIMIT EXCEEDED for ${username}. Current: ${currentDevices.length}, Attempting: ${deviceId}`);
-        return res.status(403).json({
+        logger.info(`⚠️ User ${username} has max devices, showing device selection`);
+        return res.status(409).json({
           success: false,
-          message: "Tài khoản đã đăng nhập trên 2 thiết bị. Vui lòng đăng xuất một thiết bị trước khi đăng nhập thiết bị mới.",
-          devices: currentDevices.map(d => ({ id: d.id, name: d.name })),
-          code: 'DEVICE_LIMIT_EXCEEDED'
+          message: "Tài khoản đã đăng nhập trên 2 thiết bị. Vui lòng chọn thiết bị cần đăng xuất để tiếp tục.",
+          devices: currentDevices.map(d => ({ 
+            id: d.id, 
+            name: d.name,
+            lastActive: new Date().toISOString() // Add timestamp for UI
+          })),
+          code: 'DEVICE_SELECTION_REQUIRED',
+          newDevice: {
+            id: deviceId,
+            name: deviceName
+          }
         });
       }
 
@@ -616,6 +626,126 @@ router.post('/check-approval', async (req, res, next) => {
     res.json({ success: true, message: "Kiểm tra và gửi email hoàn tất" });
   } catch (error) {
     logger.error("Lỗi khi kiểm tra phê duyệt:", error);
+    next(error);
+  }
+});
+
+// New endpoint: Replace device and login
+router.post('/replace-device-and-login', async (req, res, next) => {
+  logger.info('Request received for /api/replace-device-and-login', { body: req.body });
+  
+  const { username, password, logoutDeviceId, newDeviceId, newDeviceName } = req.body;
+  
+  if (!username || !password || !logoutDeviceId || !newDeviceId || !newDeviceName) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "Thiếu thông tin cần thiết!" 
+    });
+  }
+
+  const sheetsClient = req.app.locals.sheetsClient;
+  const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID;
+  
+  if (!sheetsClient || !SPREADSHEET_ID) {
+    return res.status(503).json({ 
+      success: false, 
+      message: 'Service unavailable' 
+    });
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    // Get user data
+    const response = await sheetsClient.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Accounts',
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+
+    const rows = response.data.values;
+    const headers = rows[0];
+    const usernameIndex = headers.indexOf("Username");
+    const passwordIndex = headers.indexOf("Password");
+    const device1IdIndex = headers.indexOf("Device_1_ID");
+    const device1NameIndex = headers.indexOf("Device_1_Name");
+    const device2IdIndex = headers.indexOf("Device_2_ID");
+    const device2NameIndex = headers.indexOf("Device_2_Name");
+
+    const userRowIndex = rows.findIndex(row => row[usernameIndex] === username);
+    if (userRowIndex === -1) {
+      return res.status(404).json({ success: false, message: "Tài khoản không tồn tại!" });
+    }
+
+    const user = rows[userRowIndex];
+    
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password.trim(), user[passwordIndex]?.trim() || '');
+    if (!isPasswordValid) {
+      return res.status(401).json({ success: false, message: "Mật khẩu không đúng!" });
+    }
+
+    // Get current devices
+    let device1Id = user[device1IdIndex] || "";
+    let device1Name = user[device1NameIndex] || "";
+    let device2Id = user[device2IdIndex] || "";
+    let device2Name = user[device2NameIndex] || "";
+
+    // Send logout notification to the device being replaced
+    const clients = req.app.locals.clients;
+    const logoutClientKey = `${username}_${logoutDeviceId}`;
+    const logoutClient = clients.get(logoutClientKey);
+    
+    if (logoutClient && logoutClient.readyState === WebSocket.OPEN) {
+      logoutClient.send(JSON.stringify({ 
+        action: 'logout', 
+        message: 'Thiết bị của bạn đã bị đăng xuất để đăng nhập thiết bị mới!' 
+      }));
+      logger.info(`Sent logout notification to ${logoutClientKey}`);
+    }
+
+    // Replace the device
+    if (device1Id === logoutDeviceId) {
+      device1Id = newDeviceId;
+      device1Name = newDeviceName;
+      logger.info(`Replaced device 1: ${logoutDeviceId} → ${newDeviceId}`);
+    } else if (device2Id === logoutDeviceId) {
+      device2Id = newDeviceId;
+      device2Name = newDeviceName;
+      logger.info(`Replaced device 2: ${logoutDeviceId} → ${newDeviceId}`);
+    } else {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Device cần đăng xuất không tồn tại!" 
+      });
+    }
+
+    // Update Google Sheets
+    const values = [device1Id, device1Name, device2Id, device2Name];
+    const startCol = String.fromCharCode(65 + device1IdIndex);
+    const endCol = String.fromCharCode(65 + device2NameIndex);
+    
+    await sheetsClient.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `Accounts!${startCol}${userRowIndex + 1}:${endCol}${userRowIndex + 1}`,
+      valueInputOption: "RAW",
+      resource: { values: [values] }
+    });
+
+    logger.info(`✅ Device replaced successfully for ${username}: ${logoutDeviceId} → ${newDeviceId}`);
+    
+    return res.status(200).json({
+      success: true,
+      message: "Đăng xuất thiết bị cũ và đăng nhập thiết bị mới thành công!",
+      replacedDevice: logoutDeviceId,
+      newDevice: newDeviceId
+    });
+
+  } catch (error) {
+    clearTimeout(timeout);
+    logger.error('Lỗi khi thay thế thiết bị:', error);
     next(error);
   }
 });
