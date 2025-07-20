@@ -117,18 +117,25 @@ router.post('/login', loginLimiter, async (req, res, next) => {
           code: 'DEVICE_LIMIT_EXCEEDED'
         });
       }
-  
-      currentDevices.push({ id: deviceId, name: deviceName });
-      currentDevices = currentDevices.slice(-2);
-  
-      const values = [
-        currentDevices[0]?.id || "",
-        currentDevices[0]?.name || "",
-        currentDevices[1]?.id || "",
-        currentDevices[1]?.name || ""
-      ];
-  
-      // Tính range động dựa trên chỉ số cột
+
+      // Logic cập nhật device chính xác
+      let device1Id = user[device1IdIndex] || "";
+      let device1Name = user[device1NameIndex] || "";
+      let device2Id = user[device2IdIndex] || "";
+      let device2Name = user[device2NameIndex] || "";
+
+      // Nếu device 1 trống, gán vào device 1
+      if (!device1Id) {
+        device1Id = deviceId;
+        device1Name = deviceName;
+      }
+      // Nếu device 1 đã có nhưng device 2 trống, gán vào device 2
+      else if (!device2Id) {
+        device2Id = deviceId;
+        device2Name = deviceName;
+      }
+
+      const values = [device1Id, device1Name, device2Id, device2Name];      // Tính range động dựa trên chỉ số cột
       const startCol = String.fromCharCode(65 + device1IdIndex); // Ví dụ: L (11 -> 76)
       const endCol = String.fromCharCode(65 + device2NameIndex); // Ví dụ: O (14 -> 79)
       await sheetsClient.spreadsheets.values.update({
@@ -507,10 +514,24 @@ router.post('/logout-device-from-sheet', async (req, res, next) => {
   }
 
   devices = devices.filter(d => d.id !== deviceId);
-  const values = [
-    devices[0]?.id || "", devices[0]?.name || "",
-    devices[1]?.id || "", devices[1]?.name || ""
-  ];
+  
+  // Logic cập nhật device chính xác sau khi logout
+  let device1Id = "";
+  let device1Name = "";
+  let device2Id = "";
+  let device2Name = "";
+
+  // Gán lại devices còn lại vào đúng vị trí
+  if (devices.length >= 1) {
+    device1Id = devices[0].id;
+    device1Name = devices[0].name;
+  }
+  if (devices.length >= 2) {
+    device2Id = devices[1].id;
+    device2Name = devices[1].name;
+  }
+
+  const values = [device1Id, device1Name, device2Id, device2Name];
 
 const startCol = String.fromCharCode(65 + device1IdIndex);
 const endCol = String.fromCharCode(65 + device2NameIndex);
