@@ -181,6 +181,42 @@ router.post('/login', loginLimiter, async (req, res, next) => {
           message: "Đăng nhập thành công!"
         });
       }
+      
+      // FALLBACK: Check if device name matches (in case device ID regenerated)
+      const deviceByName = currentDevices.find(d => d.name === deviceName);
+      if (deviceByName && currentDevices.length >= 1) {
+        logger.info(`🔄 Device name match found, updating device ID: ${deviceByName.id} → ${deviceId}`);
+        
+        // Update the existing device ID
+        currentDevices = currentDevices.map(d => 
+          d.name === deviceName ? { id: deviceId, name: deviceName } : d
+        );
+        
+        const values = [
+          currentDevices[0]?.id || "",
+          currentDevices[0]?.name || "",
+          currentDevices[1]?.id || "",
+          currentDevices[1]?.name || ""
+        ];
+        
+        const startCol = String.fromCharCode(65 + device1IdIndex);
+        const endCol = String.fromCharCode(65 + device2NameIndex);
+        
+        await sheetsClient.spreadsheets.values.update({
+          spreadsheetId: SPREADSHEET_ID,
+          range: `Accounts!${startCol}${userRowIndex + 1}:${endCol}${userRowIndex + 1}`,
+          valueInputOption: "RAW",
+          resource: { values: [values] }
+        });
+        
+        clearCache();
+        logger.info(`✅ Device ID updated for ${username}: ${deviceByName.id} → ${deviceId}`);
+        
+        return res.status(200).json({ 
+          success: true, 
+          message: "Đăng nhập thành công!"
+        });
+      }
 
       // If user has 2 devices, show device selection popup
       if (currentDevices.length >= 2) {
