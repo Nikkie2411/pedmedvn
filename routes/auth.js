@@ -10,6 +10,48 @@ const { getClients } = require('../websocket/websocket');
 const logger = require('../utils/logger');
 const { isValidEmail, isValidPhone } = require('../utils/validation');
 
+// Helper function to calculate string similarity
+function calculateSimilarity(str1, str2) {
+  if (!str1 || !str2) return 0;
+  if (str1 === str2) return 1;
+  
+  const longer = str1.length > str2.length ? str1 : str2;
+  const shorter = str1.length > str2.length ? str2 : str1;
+  
+  if (longer.length === 0) return 1;
+  
+  const editDistance = levenshteinDistance(longer, shorter);
+  return (longer.length - editDistance) / longer.length;
+}
+
+function levenshteinDistance(str1, str2) {
+  const matrix = [];
+  
+  for (let i = 0; i <= str2.length; i++) {
+    matrix[i] = [i];
+  }
+  
+  for (let j = 0; j <= str1.length; j++) {
+    matrix[0][j] = j;
+  }
+  
+  for (let i = 1; i <= str2.length; i++) {
+    for (let j = 1; j <= str1.length; j++) {
+      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  
+  return matrix[str2.length][str1.length];
+}
+
 // Enhanced caching with different TTLs
 const sessionCache = new NodeCache({ stdTTL: 15 * 60, checkperiod: 60 }); // 15 minutes for sessions
 const userCache = new NodeCache({ stdTTL: 30 * 60, checkperiod: 300 }); // 30 minutes for user data
@@ -182,40 +224,48 @@ router.post('/login', loginLimiter, async (req, res, next) => {
         });
       }
       
-      // FALLBACK: Check if device name matches (in case device ID regenerated)
+      // FALLBACK: Check if device name matches AND device ID is similar (in case device ID regenerated slightly)
       const deviceByName = currentDevices.find(d => d.name === deviceName);
       if (deviceByName && currentDevices.length >= 1) {
-        logger.info(`🔄 Device name match found, updating device ID: ${deviceByName.id} → ${deviceId}`);
+        // Only update if device IDs are similar (same device with slightly different fingerprint)
+        const similarity = calculateSimilarity(deviceByName.id, deviceId);
+        const isLikelySameDevice = similarity > 0.6 || Math.abs(deviceByName.id.length - deviceId.length) <= 2;
         
-        // Update the existing device ID
-        currentDevices = currentDevices.map(d => 
-          d.name === deviceName ? { id: deviceId, name: deviceName } : d
-        );
-        
-        const values = [
-          currentDevices[0]?.id || "",
-          currentDevices[0]?.name || "",
-          currentDevices[1]?.id || "",
-          currentDevices[1]?.name || ""
-        ];
-        
-        const startCol = String.fromCharCode(65 + device1IdIndex);
-        const endCol = String.fromCharCode(65 + device2NameIndex);
-        
-        await sheetsClient.spreadsheets.values.update({
-          spreadsheetId: SPREADSHEET_ID,
-          range: `Accounts!${startCol}${userRowIndex + 1}:${endCol}${userRowIndex + 1}`,
-          valueInputOption: "RAW",
-          resource: { values: [values] }
-        });
-        
-        clearCache();
-        logger.info(`✅ Device ID updated for ${username}: ${deviceByName.id} → ${deviceId}`);
-        
-        return res.status(200).json({ 
-          success: true, 
-          message: "Đăng nhập thành công!"
-        });
+        if (isLikelySameDevice) {
+          logger.info(`🔄 Device name match + similar ID found, updating device ID: ${deviceByName.id} → ${deviceId} (similarity: ${similarity})`);
+          
+          // Update the existing device ID
+          currentDevices = currentDevices.map(d => 
+            d.name === deviceName && d.id === deviceByName.id ? { id: deviceId, name: deviceName } : d
+          );
+          
+          const values = [
+            currentDevices[0]?.id || "",
+            currentDevices[0]?.name || "",
+            currentDevices[1]?.id || "",
+            currentDevices[1]?.name || ""
+          ];
+          
+          const startCol = String.fromCharCode(65 + device1IdIndex);
+          const endCol = String.fromCharCode(65 + device2NameIndex);
+          
+          await sheetsClient.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `Accounts!${startCol}${userRowIndex + 1}:${endCol}${userRowIndex + 1}`,
+            valueInputOption: "RAW",
+            resource: { values: [values] }
+          });
+          
+          clearCache();
+          logger.info(`✅ Device ID updated for ${username}: ${deviceByName.id} → ${deviceId}`);
+          
+          return res.status(200).json({ 
+            success: true, 
+            message: "Đăng nhập thành công!"
+          });
+        } else {
+          logger.info(`🚫 Device name match but IDs too different: ${deviceByName.id} vs ${deviceId} (similarity: ${similarity}) - treating as different device`);
+        }
       }
 
       // If user has 2 devices, show device selection popup
