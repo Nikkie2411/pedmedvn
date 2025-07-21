@@ -119,7 +119,7 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       let currentDevices = [
         { id: user[device1IdIndex], name: user[device1NameIndex] },
         { id: user[device2IdIndex], name: user[device2NameIndex] }
-      ].filter(d => d.id && d.id.trim() !== '');
+      ].filter(d => d.id);
 
       logger.info(`📱 Current devices for ${username}:`, currentDevices);
       logger.info(`📱 Login attempt from device: ${deviceId} (${deviceName})`);
@@ -153,8 +153,11 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       }
 
       // Add new device using simple logic like old version
+      logger.info(`📱 Before adding new device:`, currentDevices);
       currentDevices.push({ id: deviceId, name: deviceName });
+      logger.info(`📱 After pushing new device:`, currentDevices);
       currentDevices = currentDevices.slice(-2); // Keep only last 2 devices
+      logger.info(`📱 After slice(-2):`, currentDevices);
 
       const values = [
         currentDevices[0]?.id || "",
