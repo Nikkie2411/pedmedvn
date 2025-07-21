@@ -28,6 +28,53 @@ router.get('/ping', (req, res) => {
   });
 });
 
+// Debug endpoint to check user devices
+router.post('/debug/user-devices', async (req, res, next) => {
+  const { username } = req.body;
+  
+  if (!username) {
+    return res.status(400).json({ error: 'Username required' });
+  }
+
+  try {
+    const sheetsClient = req.app.locals.sheetsClient;
+    const SPREADSHEET_ID = req.app.locals.SPREADSHEET_ID;
+    
+    const response = await sheetsClient.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Accounts'
+    });
+
+    const rows = response.data.values;
+    const headers = rows[0];
+    const usernameIndex = headers.indexOf("Username");
+    const device1IdIndex = headers.indexOf("Device_1_ID");
+    const device1NameIndex = headers.indexOf("Device_1_Name");
+    const device2IdIndex = headers.indexOf("Device_2_ID");
+    const device2NameIndex = headers.indexOf("Device_2_Name");
+
+    const userRowIndex = rows.findIndex(row => row[usernameIndex] === username);
+    if (userRowIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = rows[userRowIndex];
+    const devices = [
+      { id: user[device1IdIndex], name: user[device1NameIndex] },
+      { id: user[device2IdIndex], name: user[device2NameIndex] }
+    ].filter(d => d.id);
+
+    res.json({ 
+      username, 
+      devices, 
+      timestamp: new Date().toISOString() 
+    });
+  } catch (error) {
+    logger.error('Debug endpoint error:', error);
+    next(error);
+  }
+});
+
 router.post('/login', loginLimiter, async (req, res, next) => {
   const startTime = Date.now();
   const { username, password, deviceId, deviceName } = req.body;
@@ -123,6 +170,8 @@ router.post('/login', loginLimiter, async (req, res, next) => {
 
       logger.info(`📱 Current devices for ${username}:`, currentDevices);
       logger.info(`📱 Login attempt from device: ${deviceId} (${deviceName})`);
+      logger.info(`📱 Device check - Current device IDs: [${currentDevices.map(d => d.id).join(', ')}]`);
+      logger.info(`📱 Device check - Attempting login with: ${deviceId}`);
 
       // If device already exists, just return success
       if (currentDevices.some(d => d.id === deviceId)) {
