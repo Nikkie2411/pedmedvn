@@ -115,23 +115,15 @@ router.post('/login', loginLimiter, async (req, res, next) => {
         });
       }
   
-      // Get current devices for this user - FIX: Better filtering
-      let device1Id = user[device1IdIndex] || "";
-      let device1Name = user[device1NameIndex] || "";
-      let device2Id = user[device2IdIndex] || "";
-      let device2Name = user[device2NameIndex] || "";
-      
-      let currentDevices = [];
-      if (device1Id && device1Id.trim() !== '') {
-        currentDevices.push({ id: device1Id.trim(), name: device1Name || "" });
-      }
-      if (device2Id && device2Id.trim() !== '') {
-        currentDevices.push({ id: device2Id.trim(), name: device2Name || "" });
-      }
-  
+      // Get current devices for this user - FIXED: Use simple array logic like old version
+      let currentDevices = [
+        { id: user[device1IdIndex], name: user[device1NameIndex] },
+        { id: user[device2IdIndex], name: user[device2NameIndex] }
+      ].filter(d => d.id && d.id.trim() !== '');
+
       logger.info(`📱 Current devices for ${username}:`, currentDevices);
       logger.info(`📱 Login attempt from device: ${deviceId} (${deviceName})`);
-  
+
       // If device already exists, just return success
       if (currentDevices.some(d => d.id === deviceId)) {
         logger.info(`✅ Device ${deviceId} already registered for ${username}`);
@@ -140,7 +132,7 @@ router.post('/login', loginLimiter, async (req, res, next) => {
           message: "Đăng nhập thành công!"
         });
       }
-  
+
       // If user has 2 devices, show device selection popup
       if (currentDevices.length >= 2) {
         logger.info(`⚠️ User ${username} has max devices, showing device selection`);
@@ -160,24 +152,20 @@ router.post('/login', loginLimiter, async (req, res, next) => {
         });
       }
 
-      // Only allow adding device if there's space
-      if (currentDevices.length === 0) {
-        // Add to device 1 slot
-        device1Id = deviceId;
-        device1Name = deviceName;
-        logger.info(`📱 Adding device to slot 1: ${deviceId}`);
-      } else if (currentDevices.length === 1) {
-        // Add to device 2 slot - keep device 1 unchanged
-        device2Id = deviceId;
-        device2Name = deviceName;
-        logger.info(`📱 Adding device to slot 2: ${deviceId}, keeping device 1: ${device1Id}`);
-      }
+      // Add new device using simple logic like old version
+      currentDevices.push({ id: deviceId, name: deviceName });
+      currentDevices = currentDevices.slice(-2); // Keep only last 2 devices
 
-      const values = [device1Id, device1Name, device2Id, device2Name];
+      const values = [
+        currentDevices[0]?.id || "",
+        currentDevices[0]?.name || "",
+        currentDevices[1]?.id || "",
+        currentDevices[1]?.name || ""
+      ];
       
-      logger.info(`📱 Final device values for ${username}:`, {
-        device1: { id: device1Id, name: device1Name },
-        device2: { id: device2Id, name: device2Name }
+      logger.info(`📱 Final device assignment for ${username}:`, {
+        device1: { id: currentDevices[0]?.id, name: currentDevices[0]?.name },
+        device2: { id: currentDevices[1]?.id, name: currentDevices[1]?.name }
       });
   
       // Calculate dynamic range based on column indices
