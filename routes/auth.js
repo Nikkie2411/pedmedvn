@@ -176,7 +176,7 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       if ([usernameIndex, passwordIndex, approvedIndex, device1IdIndex, device1NameIndex, device2IdIndex, device2NameIndex].includes(-1)) {
         return res.status(500).json({ 
           success: false, 
-          data: { success: false, message: "Lỗi cấu trúc Google Sheets!" }
+          message: "Lỗi cấu trúc Google Sheets!"
         });
       }
   
@@ -184,7 +184,7 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       if (userRowIndex === -1) {
         return res.status(401).json({ 
           success: false, 
-          data: { success: false, message: "Tài khoản hoặc mật khẩu chưa đúng!" }
+          message: "Tài khoản hoặc mật khẩu chưa đúng!"
         });
       }
   
@@ -193,14 +193,14 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       if (!isPasswordValid) {
         return res.status(401).json({ 
           success: false, 
-          data: { success: false, message: "Tài khoản hoặc mật khẩu chưa đúng!" }
+          message: "Tài khoản hoặc mật khẩu chưa đúng!"
         });
       }
   
       if (user[approvedIndex]?.trim().toLowerCase() !== "đã duyệt") {
         return res.status(403).json({ 
           success: false, 
-          data: { success: false, message: "Tài khoản chưa được phê duyệt bởi quản trị viên." }
+          message: "Tài khoản chưa được phê duyệt bởi quản trị viên."
         });
       }
   
@@ -209,11 +209,6 @@ router.post('/login', loginLimiter, async (req, res, next) => {
         { id: user[device1IdIndex], name: user[device1NameIndex] },
         { id: user[device2IdIndex], name: user[device2NameIndex] }
       ].filter(d => d.id);
-
-      logger.info(`📱 Current devices for ${username}:`, currentDevices);
-      logger.info(`📱 Login attempt from device: ${deviceId} (${deviceName})`);
-      logger.info(`📱 Device check - Current device IDs: [${currentDevices.map(d => d.id).join(', ')}]`);
-      logger.info(`📱 Device check - Attempting login with: ${deviceId}`);
 
       // If device already exists, just return success
       if (currentDevices.some(d => d.id === deviceId)) {
@@ -247,11 +242,8 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       }
 
       // Add new device using simple logic like old version
-      logger.info(`📱 Before adding new device:`, currentDevices);
       currentDevices.push({ id: deviceId, name: deviceName });
-      logger.info(`📱 After pushing new device:`, currentDevices);
       currentDevices = currentDevices.slice(-2); // Keep only last 2 devices
-      logger.info(`📱 After slice(-2):`, currentDevices);
 
       const values = [
         currentDevices[0]?.id || "",
@@ -259,11 +251,6 @@ router.post('/login', loginLimiter, async (req, res, next) => {
         currentDevices[1]?.id || "",
         currentDevices[1]?.name || ""
       ];
-      
-      logger.info(`📱 Final device assignment for ${username}:`, {
-        device1: { id: currentDevices[0]?.id, name: currentDevices[0]?.name },
-        device2: { id: currentDevices[1]?.id, name: currentDevices[1]?.name }
-      });
   
       // Calculate dynamic range based on column indices
       const startCol = String.fromCharCode(65 + device1IdIndex);
@@ -278,7 +265,6 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       
       // Clear cache to ensure fresh data on next login attempt
       clearCache();
-      logger.info(`🧹 Cache cleared after device update for ${username}`);
       
       logger.info(`✅ Device ${deviceId} successfully registered for ${username}`);
       
@@ -447,7 +433,6 @@ router.post('/check-session', async (req, res, next) => {
   const { username, deviceId } = req.body;
 
   if (!username || !deviceId) {
-    console.log("Lỗi: Không có tên đăng nhập hoặc Device ID");
     return res.status(400).json({ success: false, message: "Thiếu thông tin tài khoản hoặc thiết bị!" });
   }
 
@@ -458,7 +443,6 @@ router.post('/check-session', async (req, res, next) => {
   }
 
   try {
-    console.log(`📌 Kiểm tra trạng thái tài khoản của: ${username}, DeviceID: ${deviceId}`);
     const response = await sheetsClient.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: 'Accounts',
@@ -466,7 +450,6 @@ router.post('/check-session', async (req, res, next) => {
 
     const rows = response.data.values;
     if (!rows || rows.length === 0) {
-      console.log("Không tìm thấy tài khoản trong Google Sheets");
       return res.json({ success: false, message: "Không tìm thấy tài khoản!" });
     }
 
@@ -477,7 +460,6 @@ router.post('/check-session', async (req, res, next) => {
     const device2IdIndex = headers.indexOf("Device_2_ID");
 
     if ([usernameIndex, approvedIndex, device1IdIndex, device2IdIndex].includes(-1)) {
-      console.log("Lỗi: Không tìm thấy cột cần thiết");
       return res.status(500).json({ success: false, message: "Lỗi cấu trúc Google Sheets!" });
     }
 
@@ -485,23 +467,17 @@ router.post('/check-session', async (req, res, next) => {
     const user = accounts.find(row => row[usernameIndex]?.trim() === username.trim());
 
     if (!user) {
-      console.log("Tài khoản không tồn tại!");
       return res.json({ success: false, message: "Tài khoản không tồn tại!" });
     }
 
-    console.log(`📌 Trạng thái tài khoản: ${user[approvedIndex]}`);
-
     if (!user[approvedIndex] || user[approvedIndex]?.trim().toLowerCase() !== "đã duyệt") {
-      console.log("⚠️ Tài khoản bị hủy duyệt, cần đăng xuất!");
       return res.json({ success: false, message: "Tài khoản đã bị hủy duyệt!" });
     }
 
     // Kiểm tra xem thiết bị còn hợp lệ không
     const currentDevices = [user[device1IdIndex], user[device2IdIndex]].filter(Boolean);
-    console.log(`📌 Danh sách thiết bị hợp lệ: ${currentDevices}`);
 
     if (!currentDevices.includes(deviceId)) {
-      console.log("⚠️ Thiết bị không còn hợp lệ, cần đăng xuất!");
       
       // Send real-time notification via WebSocket
       const clients = getClients();
@@ -514,7 +490,6 @@ router.post('/check-session', async (req, res, next) => {
           message: 'Thiết bị của bạn đã bị xóa khỏi danh sách. Đăng xuất ngay lập tức!',
           timestamp: new Date().toISOString()
         }));
-        logger.info(`📡 Sent force logout notification to ${clientKey}`);
       }
       
       return res.json({ success: false, message: "Thiết bị của bạn đã bị đăng xuất!" });
@@ -606,7 +581,6 @@ logger.info('Request received for /api/logout-device', { body: req.body });
 
     // Clear cache to ensure fresh data
     clearCache();
-    logger.info(`🧹 Cache cleared after logout-device operation`);
 
     return res.json({ success: true, message: "Đăng xuất thành công!" });
   } catch (error) {
@@ -693,7 +667,6 @@ await sheetsClient.spreadsheets.values.update({
 
 // Clear cache to ensure fresh data
 clearCache();
-logger.info(`🧹 Cache cleared after logout-device-from-sheet operation`);
 
   return res.json({ success: true, message: "Thiết bị đã được xóa khỏi danh sách!" });
 } catch (error) {
@@ -851,7 +824,6 @@ router.post('/replace-device-and-login', async (req, res, next) => {
 
     // Clear cache to ensure fresh data
     clearCache();
-    logger.info(`🧹 Cache cleared after replace-device-and-login operation`);
 
     logger.info(`✅ Device replaced successfully for ${username}: ${oldDeviceId} → ${newDeviceId}`);
     
@@ -892,8 +864,6 @@ router.post('/admin/force-logout-device', async (req, res, next) => {
         message: `Thiết bị của bạn đã bị xóa: ${reason}`,
         timestamp: new Date().toISOString()
       }));
-      
-      logger.info(`📡 Admin force logout notification sent to ${clientKey}`);
       
       res.json({ 
         success: true, 
