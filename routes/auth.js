@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 const NodeCache = require('node-cache');
 const WebSocket = require('ws');
 const { loginLimiter, apiLimiter } = require('../middleware/rateLimit');
-const { getSheetsClient, callSheetsAPI } = require('../services/sheets');
+const { getSheetsClient, callSheetsAPI, clearCache } = require('../services/sheets');
 const { sendRegistrationEmail, sendApprovalEmail } = require('../services/email');
 const { getClients } = require('../websocket/websocket');
 const logger = require('../utils/logger');
@@ -181,6 +181,10 @@ router.post('/login', loginLimiter, async (req, res, next) => {
         valueInputOption: "RAW",
         resource: { values: [values] }
       });
+      
+      // Clear cache to ensure fresh data on next login attempt
+      clearCache();
+      logger.info(`🧹 Cache cleared after device update for ${username}`);
       
       logger.info(`✅ Device ${deviceId} successfully registered for ${username}`);
       
@@ -506,6 +510,10 @@ logger.info('Request received for /api/logout-device', { body: req.body });
       resource: { values: [values] }
     });
 
+    // Clear cache to ensure fresh data
+    clearCache();
+    logger.info(`🧹 Cache cleared after logout-device operation`);
+
     return res.json({ success: true, message: "Đăng xuất thành công!" });
   } catch (error) {
     logger.error('Lỗi khi đăng xuất thiết bị:', error);
@@ -588,6 +596,10 @@ await sheetsClient.spreadsheets.values.update({
   valueInputOption: "RAW",
   resource: { values: [values] }
 });
+
+// Clear cache to ensure fresh data
+clearCache();
+logger.info(`🧹 Cache cleared after logout-device-from-sheet operation`);
 
   return res.json({ success: true, message: "Thiết bị đã được xóa khỏi danh sách!" });
 } catch (error) {
@@ -742,6 +754,10 @@ router.post('/replace-device-and-login', async (req, res, next) => {
       valueInputOption: "RAW",
       resource: { values: [values] }
     });
+
+    // Clear cache to ensure fresh data
+    clearCache();
+    logger.info(`🧹 Cache cleared after replace-device-and-login operation`);
 
     logger.info(`✅ Device replaced successfully for ${username}: ${oldDeviceId} → ${newDeviceId}`);
     
