@@ -1,0 +1,9 @@
+{
+  "name": "setup-chatbot",
+  "version": "1.0.0",
+  "description": "Setup script for PedMed chatbot",
+  "main": "setup-chatbot.js",
+  "scripts": {
+    "setup": "node setup-chatbot.js"
+  }
+}

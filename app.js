@@ -11,6 +11,7 @@ const authRoutes = require('./routes/auth');
 const drugRoutes = require('./routes/drugs');
 const passwordRoutes = require('./routes/password');
 const monitoringRoutes = require('./routes/monitoring');
+const chatbotRoutes = require('./routes/chatbot');
 const logger = require('./utils/logger');
 const cors = require('cors');
 
@@ -92,6 +93,7 @@ async function startServer() {
   app.use('/api', drugRoutes);
   app.use('/api', passwordRoutes);
   app.use('/api/monitoring', monitoringRoutes);
+  app.use('/api/chatbot', chatbotRoutes);
 
   const server = app.listen(PORT, '0.0.0.0', () => logger.info(`Server running on port ${PORT}`));
   app.locals.wss = setupWebSocket(server);
