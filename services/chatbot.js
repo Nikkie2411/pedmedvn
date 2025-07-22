@@ -3,6 +3,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const GoogleDriveService = require('./googleDrive');
 const MedicalDocumentProcessor = require('../utils/medicalDocumentProcessor');
+const EnhancedMedicalProcessor = require('../utils/enhancedMedicalProcessor');
 
 class ChatbotService {
     constructor() {
@@ -11,6 +12,7 @@ class ChatbotService {
         this.isInitialized = false;
         this.driveService = new GoogleDriveService();
         this.medicalProcessor = new MedicalDocumentProcessor();
+        this.enhancedProcessor = new EnhancedMedicalProcessor();
     }
 
     // Initialize chatbot with knowledge base
@@ -188,7 +190,98 @@ class ChatbotService {
             });
         });
         
+        // Extract drug names from knowledge base
+        this.extractDrugNames();
+        
         console.log(`✅ Built embeddings for ${this.embeddings.size} documents`);
+    }
+
+    // Extract drug names from knowledge base
+    extractDrugNames() {
+        this.knownDrugs = new Set();
+        
+        this.documents.forEach(doc => {
+            const content = this.preprocessVietnameseText(doc.content);
+            
+            // Enhanced drug name patterns based on real Google Drive format
+            const drugPatterns = [
+                // Direct drug names from document titles/headers
+                /^([a-zA-Z]+)\s*\.?docx?/gm,
+                /the\s+\d+\s+([a-zA-Z]+)/g,
+                
+                // Common pediatric drugs from real medical documents
+                /linezolid/g,
+                /paracetamol|acetaminophen/g,
+                /amoxicillin|amoxicilin/g,
+                /ibuprofen/g,
+                /cetirizine/g,
+                /salbutamol/g,
+                /prednisolone|prednisone/g,
+                /azithromycin/g,
+                /cefixime|cephalexin|cefuroxime/g,
+                /omeprazole|lansoprazole|esomeprazole/g,
+                /domperidone/g,
+                /oresol|oralit/g,
+                /zinc|kem/g,
+                /vitamin\s*[a-z0-9]+/g,
+                /ferro\w*|sat|iron/g,
+                /calcium|canxi/g,
+                /clarithromycin/g,
+                /erythromycin/g,
+                /cotrimoxazole|bactrim/g,
+                /metronidazole/g,
+                /ciprofloxacin/g,
+                /fluconazole/g,
+                /ketoconazole/g,
+                /clotrimazole/g,
+                /betamethasone/g,
+                /hydrocortisone/g,
+                /dexamethasone/g,
+                /loratadine/g,
+                /chlorpheniramine/g,
+                /montelukast/g,
+                /theophylline/g,
+                /aminophylline/g,
+                /vancomycin/g,
+                /gentamicin/g,
+                /ceftriaxone/g,
+                /ceftazidime/g,
+                /meropenem/g,
+                /imipenem/g,
+                /piperacillin/g,
+                /tazobactam/g,
+                
+                // Vietnamese drug context patterns
+                /thuốc\s+([a-zA-Z]+)/g,
+                /viên\s+([a-zA-Z]+)/g,
+                /siro\s+([a-zA-Z]+)/g,
+                /gel\s+([a-zA-Z]+)/g,
+                /kem\s+([a-zA-Z]+)/g,
+                /tiêm\s+([a-zA-Z]+)/g,
+                /nhỏ\s+([a-zA-Z]+)/g
+            ];
+            
+            [...drugPatterns].forEach(pattern => {
+                const matches = content.match(pattern);
+                if (matches) {
+                    matches.forEach(match => {
+                        let drugName = match
+                            .replace(/thuốc\s+|viên\s+|siro\s+|gel\s+|kem\s+|tiêm\s+|nhỏ\s+/g, '')
+                            .replace(/\.?docx?$/i, '')
+                            .replace(/^the\s+\d+\s+/g, '')
+                            .trim()
+                            .toLowerCase();
+                        
+                        if (drugName.length > 2 && /^[a-z]+$/i.test(drugName)) {
+                            this.knownDrugs.add(drugName);
+                        }
+                    });
+                }
+            });
+        });
+        
+        console.log(`💊 Extracted ${this.knownDrugs.size} known drugs from knowledge base`);
+        console.log(`📝 Known drugs: ${Array.from(this.knownDrugs).slice(0, 15).join(', ')}`);
     }
 
     // Extract keywords from Vietnamese text
@@ -204,6 +297,53 @@ class ChatbotService {
                 acc[word] = (acc[word] || 0) + 1;
                 return acc;
             }, {});
+    }
+
+    // Validate if query is about drugs in knowledge base
+    validateDrugQuery(query) {
+        const processedQuery = this.preprocessVietnameseText(query);
+        
+        // Check if query is asking about drugs
+        const drugQuestionPatterns = [
+            /thuoc|thuốc/i,
+            /lieu\s*luong|liều\s*lượng/i,
+            /tac\s*dung|tác\s*dụng/i,
+            /phu|phụ/i,
+            /chi\s*dinh|chỉ\s*định/i,
+            /chong\s*chi\s*dinh|chống\s*chỉ\s*định/i,
+            /dung|dùng/i,
+            /uong|uống/i,
+            /su\s*dung|sử\s*dụng/i,
+            /viên|siro|gel|kem|nước/i,
+            /mg|ml|gram|gam/i,
+            /ngày|lần|buổi/i
+        ];
+        
+        const isDrugQuery = drugQuestionPatterns.some(pattern => pattern.test(query));
+        
+        if (!isDrugQuery) {
+            return { isValid: true, reason: 'not_drug_question' };
+        }
+        
+        // Extract mentioned drug names from query
+        const mentionedDrugs = [];
+        this.knownDrugs.forEach(drug => {
+            const drugPattern = new RegExp(drug, 'i');
+            if (drugPattern.test(query)) {
+                mentionedDrugs.push(drug);
+            }
+        });
+        
+        if (mentionedDrugs.length === 0) {
+            const knownDrugsList = Array.from(this.knownDrugs).slice(0, 15).join(', ');
+            return { 
+                isValid: false, 
+                reason: 'unknown_drug',
+                message: `Xin lỗi, tôi không tìm thấy thông tin về thuốc này trong cơ sở dữ liệu y tế. Tôi chỉ có thể trả lời về các thuốc đã được lưu trong hệ thống như: ${knownDrugsList}. Vui lòng hỏi về một trong những thuốc này hoặc kiểm tra lại tên thuốc.`
+            };
+        }
+        
+        return { isValid: true, mentionedDrugs };
     }
 
     // Search relevant documents based on query
@@ -355,6 +495,20 @@ class ChatbotService {
 
             console.log(`💬 Chat request from ${userId}: "${message}"`);
             
+            // Validate drug query first
+            const validation = this.validateDrugQuery(message);
+            if (!validation.isValid) {
+                return {
+                    success: true,
+                    data: {
+                        answer: validation.message,
+                        sources: [],
+                        confidence: 0,
+                        responseTime: 0
+                    }
+                };
+            }
+            
             const startTime = Date.now();
             
             // Search for relevant documents
@@ -412,15 +566,23 @@ class ChatbotService {
     // Add document to knowledge base (for admin use)
     async addDocument(title, content, source = 'Manual Upload') {
         try {
-            // Process medical content with enhanced processor
-            const processedContent = this.medicalProcessor.processText(content);
+            // Process medical content with enhanced processor for real Google Drive format
+            const processedContent = this.enhancedProcessor.processRealMedicalDocument(content, title);
+            
+            if (!processedContent) {
+                console.log(`⚠️ Could not process document: ${title}`);
+                return { success: false, error: 'Document processing failed' };
+            }
             
             const newDoc = {
                 id: Date.now().toString(),
                 title,
-                content: processedContent.text,
+                content: processedContent.content,
                 source,
                 addedAt: new Date().toISOString(),
+                drugName: processedContent.drugName,
+                drugClass: processedContent.drugClass,
+                sections: processedContent.sections,
                 medicalData: processedContent.medicalData,
                 qualityScore: processedContent.qualityScore
             };
@@ -429,8 +591,16 @@ class ChatbotService {
             await this.saveKnowledgeBase();
             this.buildSimpleEmbeddings();
             
-            console.log(`📄 Added new document: "${title}" (Quality: ${processedContent.qualityScore}%)`);
-            return { success: true, documentId: newDoc.id };
+            console.log(`📄 Added new document: "${processedContent.drugName}" (Quality: ${processedContent.qualityScore}%)`);
+            console.log(`💊 Drug class: ${processedContent.drugClass}`);
+            console.log(`📋 Sections: ${Object.keys(processedContent.sections).join(', ')}`);
+            
+            return { 
+                success: true, 
+                documentId: newDoc.id,
+                drugName: processedContent.drugName,
+                qualityScore: processedContent.qualityScore
+            };
             
         } catch (error) {
             console.error('❌ Error adding document:', error);
