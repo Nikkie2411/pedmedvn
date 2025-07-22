@@ -2,6 +2,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const GoogleDriveService = require('./googleDrive');
+const MedicalDocumentProcessor = require('../utils/medicalDocumentProcessor');
 
 class ChatbotService {
     constructor() {
@@ -9,6 +10,7 @@ class ChatbotService {
         this.embeddings = new Map();
         this.isInitialized = false;
         this.driveService = new GoogleDriveService();
+        this.medicalProcessor = new MedicalDocumentProcessor();
     }
 
     // Initialize chatbot with knowledge base
@@ -264,8 +266,8 @@ class ChatbotService {
         const topDoc = relevantDocs[0];
         const confidence = Math.min(topDoc.score / 50, 1);
         
-        // Set strict confidence threshold - only answer if confidence > 30%
-        const CONFIDENCE_THRESHOLD = 0.3;
+        // Set strict confidence threshold - only answer if confidence > 40%
+        const CONFIDENCE_THRESHOLD = 0.4;
         
         if (confidence < CONFIDENCE_THRESHOLD) {
             return {
@@ -410,19 +412,24 @@ class ChatbotService {
     // Add document to knowledge base (for admin use)
     async addDocument(title, content, source = 'Manual Upload') {
         try {
+            // Process medical content with enhanced processor
+            const processedContent = this.medicalProcessor.processText(content);
+            
             const newDoc = {
                 id: Date.now().toString(),
                 title,
-                content,
+                content: processedContent.text,
                 source,
-                addedAt: new Date().toISOString()
+                addedAt: new Date().toISOString(),
+                medicalData: processedContent.medicalData,
+                qualityScore: processedContent.qualityScore
             };
             
             this.documents.push(newDoc);
             await this.saveKnowledgeBase();
             this.buildSimpleEmbeddings();
             
-            console.log(`📄 Added new document: "${title}"`);
+            console.log(`📄 Added new document: "${title}" (Quality: ${processedContent.qualityScore}%)`);
             return { success: true, documentId: newDoc.id };
             
         } catch (error) {

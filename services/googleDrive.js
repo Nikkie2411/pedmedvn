@@ -117,7 +117,7 @@ class GoogleDriveService {
     }
 
     /**
-     * Extract text từ Google Docs structure
+     * Extract text từ Google Docs structure với preserving headings
      */
     extractTextFromGoogleDoc(doc) {
         let text = '';
@@ -125,16 +125,31 @@ class GoogleDriveService {
         if (doc.body && doc.body.content) {
             for (const element of doc.body.content) {
                 if (element.paragraph) {
+                    let paragraphText = '';
+                    
+                    // Check if paragraph has heading style
+                    const paragraphStyle = element.paragraph.paragraphStyle;
+                    const isHeading = paragraphStyle && paragraphStyle.namedStyleType && 
+                                     paragraphStyle.namedStyleType.includes('HEADING');
+                    
+                    // Extract text content
                     for (const textElement of element.paragraph.elements || []) {
                         if (textElement.textRun) {
-                            text += textElement.textRun.content;
+                            paragraphText += textElement.textRun.content;
                         }
+                    }
+                    
+                    // Add appropriate formatting for headings
+                    if (isHeading && paragraphText.trim()) {
+                        text += '\n\n' + paragraphText.trim() + '\n';
+                    } else if (paragraphText.trim()) {
+                        text += paragraphText;
                     }
                 }
             }
         }
         
-        return text;
+        return text.trim();
     }
 
     /**
