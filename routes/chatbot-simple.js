@@ -11,15 +11,17 @@ try {
     chatbotService = null;
 }
 
-// Basic rate limiting
-const rateLimit = require('../middleware/rateLimit');
+// Basic rate limiting using express-rate-limit directly
+const rateLimit = require('express-rate-limit');
 const chatRateLimit = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
     max: 10, // Max 10 requests per minute per IP
     message: { 
         success: false, 
         message: 'Quá nhiều câu hỏi. Vui lòng đợi 1 phút trước khi hỏi tiếp.' 
-    }
+    },
+    standardHeaders: true,
+    legacyHeaders: false
 });
 
 // Health check for chatbot

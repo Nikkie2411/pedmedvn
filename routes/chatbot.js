@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const chatbotService = require('../services/chatbot');
-const rateLimit = require('../middleware/rateLimit');
+const rateLimit = require('express-rate-limit');
 
 // Rate limiting for chatbot (more restrictive due to processing cost)
 const chatRateLimit = rateLimit({
