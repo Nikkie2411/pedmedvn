@@ -101,19 +101,65 @@ router.post('/chat', chatRateLimit, async (req, res) => {
     }
 });
 
-// Get chatbot status
+// Get chatbot status with detailed info
 router.get('/status', async (req, res) => {
     try {
         const stats = chatbotService.getStats();
+        
+        // Get knowledge base sources
+        const sources = [...new Set(chatbotService.documents.map(doc => doc.source))];
+        const hasRealData = !sources.every(source => source === 'System Notice');
+        
         res.json({
             success: true,
-            data: stats
+            data: {
+                ...stats,
+                hasRealData: hasRealData,
+                sources: sources,
+                driveConnected: chatbotService.driveService ? true : false
+            }
         });
     } catch (error) {
         console.error('❌ Status API error:', error);
         res.status(500).json({
             success: false,
             message: 'Không thể lấy trạng thái chatbot'
+        });
+    }
+});
+
+// Debug endpoint to show knowledge base content (admin only)
+router.get('/debug', (req, res) => {
+    try {
+        const { adminKey } = req.query;
+        
+        if (!adminKey || adminKey !== process.env.ADMIN_KEY) {
+            return res.status(403).json({
+                success: false,
+                message: 'Không có quyền truy cập'
+            });
+        }
+        
+        const documents = chatbotService.documents.map(doc => ({
+            id: doc.id,
+            title: doc.title,
+            source: doc.source,
+            contentPreview: doc.content ? doc.content.substring(0, 200) + '...' : 'No content',
+            keywords: doc.keywords ? doc.keywords.slice(0, 10) : []
+        }));
+        
+        res.json({
+            success: true,
+            data: {
+                totalDocuments: documents.length,
+                documents: documents,
+                sources: [...new Set(documents.map(d => d.source))]
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Debug error: ' + error.message
         });
     }
 });

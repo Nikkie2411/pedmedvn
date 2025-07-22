@@ -16,24 +16,50 @@ class ChatbotService {
         try {
             console.log('🤖 Initializing chatbot service...');
             
-            // Sync documents from Google Drive first
-            console.log('🔄 Syncing documents from Google Drive...');
-            const synced = await this.driveService.syncDocuments();
+            // First load existing knowledge base
+            await this.loadKnowledgeBase();
+            console.log(`📚 Loaded ${this.documents.length} documents from existing knowledge base`);
             
-            if (synced) {
-                console.log('✅ Documents synced from Google Drive');
-                // Rebuild knowledge base with new documents
-                await this.rebuildKnowledgeBase();
+            // Try to sync documents from Google Drive
+            console.log('🔄 Attempting to sync documents from Google Drive...');
+            try {
+                const synced = await this.driveService.syncDocuments();
+                
+                if (synced) {
+                    console.log('✅ Documents synced from Google Drive - rebuilding knowledge base');
+                    // Rebuild knowledge base with new documents
+                    await this.rebuildKnowledgeBase();
+                    // Reload the updated knowledge base
+                    await this.loadKnowledgeBase();
+                    console.log(`📚 Updated knowledge base now has ${this.documents.length} documents`);
+                } else {
+                    console.log('📝 No new documents from Google Drive - using existing knowledge base');
+                }
+            } catch (driveError) {
+                console.warn('⚠️ Google Drive sync failed:', driveError.message);
+                console.log('📝 Continuing with existing knowledge base');
             }
             
-            // Load processed documents from JSON (pre-processed from Word files)
-            await this.loadKnowledgeBase();
+            // Validate knowledge base
+            if (this.documents.length === 0) {
+                console.warn('⚠️ No documents in knowledge base! Creating sample data...');
+                await this.createSampleKnowledgeBase();
+            }
             
-            // Schedule periodic syncs (every 6 hours)
-            this.driveService.scheduleSync(6);
+            // Schedule periodic syncs (every 6 hours) only if Drive is working
+            try {
+                this.driveService.scheduleSync(6);
+            } catch (error) {
+                console.log('📝 Drive scheduling disabled - working offline only');
+            }
             
             this.isInitialized = true;
             console.log(`✅ Chatbot initialized with ${this.documents.length} documents`);
+            
+            // Log knowledge base sources for debugging
+            const sources = [...new Set(this.documents.map(doc => doc.source))];
+            console.log('📊 Knowledge base sources:', sources.join(', '));
+            
         } catch (error) {
             console.error('❌ Failed to initialize chatbot:', error);
             throw error;
@@ -100,6 +126,28 @@ class ChatbotService {
             console.error('❌ Error rebuilding knowledge base:', error);
             // Don't throw - continue with existing knowledge base
         }
+    }
+
+    // Create sample knowledge base if no documents exist
+    async createSampleKnowledgeBase() {
+        console.log('🔨 Creating minimal sample knowledge base...');
+        
+        const sampleDocs = [
+            {
+                id: "no_data_notice",
+                title: "Thông báo không có dữ liệu",
+                content: "Hiện tại hệ thống chưa có dữ liệu từ Google Drive. Vui lòng liên hệ quản trị viên để cập nhật tài liệu y tế. Tôi chỉ có thể trả lời các câu hỏi khi có đầy đủ tài liệu chuyên môn.",
+                keywords: ["không có dữ liệu", "liên hệ", "quản trị viên", "cập nhật"],
+                source: "System Notice",
+                lastUpdated: new Date().toISOString()
+            }
+        ];
+        
+        this.documents = sampleDocs;
+        await this.saveKnowledgeBase();
+        this.buildSimpleEmbeddings();
+        
+        console.log('⚠️ Created minimal knowledge base with system notice');
     }
 
     // Process Vietnamese text for better search
@@ -206,38 +254,87 @@ class ChatbotService {
     generateResponse(query, relevantDocs) {
         if (relevantDocs.length === 0) {
             return {
-                answer: "Xin lỗi, tôi không tìm thấy thông tin phù hợp trong cơ sở dữ liệu. Bạn có thể thử hỏi về thuốc nhi khoa, liều lượng, hoặc chống chỉ định không?",
+                answer: "Xin lỗi, tôi không tìm thấy thông tin về câu hỏi này trong cơ sở dữ liệu y tế. Vui lòng hỏi về các thuốc nhi khoa cụ thể như paracetamol, amoxicillin, ibuprofen, hoặc các thông tin có trong tài liệu.",
                 sources: [],
                 confidence: 0
             };
         }
 
-        // Simple response generation based on most relevant document
+        // Calculate minimum confidence threshold
         const topDoc = relevantDocs[0];
-        const confidence = Math.min(topDoc.score / 50, 1); // Normalize confidence
+        const confidence = Math.min(topDoc.score / 50, 1);
         
-        // Extract relevant paragraph from document
-        const sentences = topDoc.content.split(/[.!?]+/).filter(s => s.trim().length > 20);
-        const queryLower = query.toLowerCase();
+        // Set strict confidence threshold - only answer if confidence > 30%
+        const CONFIDENCE_THRESHOLD = 0.3;
         
-        let relevantSentences = sentences.filter(sentence => {
-            const sentenceLower = sentence.toLowerCase();
-            return query.split(' ').some(word => 
-                word.length > 3 && sentenceLower.includes(word.toLowerCase())
-            );
-        });
-        
-        if (relevantSentences.length === 0) {
-            relevantSentences = sentences.slice(0, 2); // Fallback to first 2 sentences
+        if (confidence < CONFIDENCE_THRESHOLD) {
+            return {
+                answer: "Tôi không có đủ thông tin chính xác để trả lời câu hỏi này. Vui lòng hỏi cụ thể hơn về thuốc nhi khoa, liều lượng, tác dụng phụ hoặc chống chỉ định có trong tài liệu.",
+                sources: [],
+                confidence: Math.round(confidence * 100)
+            };
         }
         
+        // Extract relevant information from documents
+        const queryLower = this.preprocessVietnameseText(query);
+        const queryTerms = queryLower.split(' ').filter(term => term.length > 2);
+        
+        // Find most relevant sentences
+        let relevantSentences = [];
+        
+        relevantDocs.forEach(doc => {
+            const sentences = doc.content.split(/[.!?]+/).filter(s => s.trim().length > 15);
+            
+            sentences.forEach(sentence => {
+                const sentenceLower = this.preprocessVietnameseText(sentence);
+                let matchScore = 0;
+                
+                queryTerms.forEach(term => {
+                    if (sentenceLower.includes(term)) {
+                        matchScore += 1;
+                    }
+                });
+                
+                if (matchScore > 0) {
+                    relevantSentences.push({
+                        text: sentence.trim(),
+                        score: matchScore,
+                        source: doc.source,
+                        title: doc.title
+                    });
+                }
+            });
+        });
+        
+        // Sort by relevance and take top sentences
+        relevantSentences.sort((a, b) => b.score - a.score);
+        
+        if (relevantSentences.length === 0) {
+            return {
+                answer: "Mặc dù tôi tìm thấy tài liệu liên quan, nhưng không có thông tin cụ thể cho câu hỏi này. Vui lòng hỏi chi tiết hơn hoặc kiểm tra lại từ khóa.",
+                sources: relevantDocs.slice(0, 1).map(doc => ({
+                    title: doc.title,
+                    source: doc.source,
+                    confidence: Math.round(doc.score / relevantDocs[0].score * 100)
+                })),
+                confidence: Math.round(confidence * 100)
+            };
+        }
+        
+        // Build comprehensive answer from relevant sentences
         const answer = relevantSentences
-            .slice(0, 3) // Max 3 sentences
-            .map(s => s.trim())
+            .slice(0, 3) // Take top 3 most relevant sentences
+            .map(s => s.text)
             .join('. ') + '.';
         
+        // Clean up answer
+        const cleanAnswer = answer
+            .replace(/\.\s*\./g, '.')
+            .replace(/\s+/g, ' ')
+            .trim();
+        
         return {
-            answer: answer || topDoc.content.substring(0, 300) + '...',
+            answer: cleanAnswer,
             sources: relevantDocs.slice(0, 2).map(doc => ({
                 title: doc.title,
                 source: doc.source,
