@@ -1,12 +1,14 @@
 // Chatbot service with Vietnamese text processing and RAG
 const fs = require('fs').promises;
 const path = require('path');
+const GoogleDriveService = require('./googleDrive');
 
 class ChatbotService {
     constructor() {
         this.documents = [];
         this.embeddings = new Map();
         this.isInitialized = false;
+        this.driveService = new GoogleDriveService();
     }
 
     // Initialize chatbot with knowledge base
@@ -14,8 +16,21 @@ class ChatbotService {
         try {
             console.log('🤖 Initializing chatbot service...');
             
+            // Sync documents from Google Drive first
+            console.log('🔄 Syncing documents from Google Drive...');
+            const synced = await this.driveService.syncDocuments();
+            
+            if (synced) {
+                console.log('✅ Documents synced from Google Drive');
+                // Rebuild knowledge base with new documents
+                await this.rebuildKnowledgeBase();
+            }
+            
             // Load processed documents from JSON (pre-processed from Word files)
             await this.loadKnowledgeBase();
+            
+            // Schedule periodic syncs (every 6 hours)
+            this.driveService.scheduleSync(6);
             
             this.isInitialized = true;
             console.log(`✅ Chatbot initialized with ${this.documents.length} documents`);
@@ -65,6 +80,25 @@ class ChatbotService {
         } catch (error) {
             console.error('❌ Error saving knowledge base:', error);
             throw error;
+        }
+    }
+
+    // Rebuild knowledge base from documents folder
+    async rebuildKnowledgeBase() {
+        try {
+            console.log('🔨 Rebuilding knowledge base from documents...');
+            
+            const DocumentProcessor = require('../utils/documentProcessor');
+            const processor = new DocumentProcessor();
+            
+            const documentsDir = path.join(__dirname, '..', 'documents');
+            const outputPath = path.join(__dirname, '..', 'data', 'knowledge_base.json');
+            
+            await processor.buildKnowledgeBase(documentsDir, outputPath);
+            console.log('✅ Knowledge base rebuilt successfully');
+        } catch (error) {
+            console.error('❌ Error rebuilding knowledge base:', error);
+            // Don't throw - continue with existing knowledge base
         }
     }
 

@@ -16,6 +16,50 @@ const chatRateLimit = rateLimit({
     legacyHeaders: false
 });
 
+// Test Google Drive connection
+router.get('/drive-test', async (req, res) => {
+    try {
+        const result = await chatbotService.driveService.testAccess();
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi kiểm tra Google Drive: ' + error.message
+        });
+    }
+});
+
+// Sync documents from Google Drive (admin only)
+router.post('/sync-drive', async (req, res) => {
+    try {
+        const { adminKey } = req.body;
+        
+        if (!adminKey || adminKey !== process.env.ADMIN_KEY) {
+            return res.status(403).json({
+                success: false,
+                message: 'Không có quyền truy cập'
+            });
+        }
+        
+        const synced = await chatbotService.driveService.syncDocuments();
+        
+        if (synced) {
+            await chatbotService.rebuildKnowledgeBase();
+            await chatbotService.loadKnowledgeBase();
+        }
+        
+        res.json({
+            success: true,
+            message: synced ? 'Đã đồng bộ tài liệu từ Google Drive' : 'Không có tài liệu mới để đồng bộ'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi đồng bộ: ' + error.message
+        });
+    }
+});
+
 // Chat endpoint
 router.post('/chat', chatRateLimit, async (req, res) => {
     try {

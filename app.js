@@ -11,7 +11,16 @@ const authRoutes = require('./routes/auth');
 const drugRoutes = require('./routes/drugs');
 const passwordRoutes = require('./routes/password');
 const monitoringRoutes = require('./routes/monitoring');
-const chatbotRoutes = require('./routes/chatbot');
+
+// Try to load full chatbot, fallback to simple version
+let chatbotRoutes;
+try {
+  chatbotRoutes = require('./routes/chatbot');
+  console.log('✅ Loaded full chatbot routes');
+} catch (error) {
+  console.warn('⚠️ Full chatbot failed, using simple version:', error.message);
+  chatbotRoutes = require('./routes/chatbot-simple');
+}
 const logger = require('./utils/logger');
 const cors = require('cors');
 
@@ -70,6 +79,17 @@ async function startServer() {
   await initializeSheetsClient();
   app.locals.sheetsClient = require('./services/sheets').getSheetsClient();
   await loadUsernames();
+
+  // Initialize chatbot service
+  try {
+    console.log('🤖 Initializing chatbot service...');
+    const chatbotService = require('./services/chatbot');
+    await chatbotService.initialize();
+    console.log('✅ Chatbot service initialized successfully');
+  } catch (error) {
+    console.error('⚠️ Chatbot initialization failed:', error.message);
+    // Don't fail the entire server - just log the error
+  }
 
   app.use(express.json({ limit: '10kb' }));
   app.use(ensureSheetsClient);
