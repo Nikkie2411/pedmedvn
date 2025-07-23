@@ -1,16 +1,12 @@
-// Google Gemini AI Chatbot Service với RAG từ Google Drive
+// Google Gemini AI Chatbot Service với knowledge base từ local documents
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const fs = require('fs').promises;
 const path = require('path');
-const GoogleDriveService = require('./googleDrive');
-const EnhancedMedicalProcessor = require('../utils/enhancedMedicalProcessor');
 
 class GeminiChatbotService {
     constructor() {
         this.documents = [];
         this.isInitialized = false;
-        this.driveService = new GoogleDriveService();
-        this.enhancedProcessor = new EnhancedMedicalProcessor();
         this.knownDrugs = new Set();
         
         // Initialize Gemini AI
@@ -23,29 +19,18 @@ class GeminiChatbotService {
         }
     }
 
-    // Initialize với Google Drive data
+    // Initialize với local documents
     async initialize() {
         try {
             console.log('🤖 Initializing Gemini AI chatbot service...');
             
-            // Load existing knowledge base
-            await this.loadKnowledgeBase();
-            console.log(`📚 Loaded ${this.documents.length} documents from existing knowledge base`);
-            
-            // Sync with Google Drive
-            try {
-                const synced = await this.driveService.syncDocuments();
-                if (synced) {
-                    console.log('✅ Documents synced from Google Drive - rebuilding knowledge base');
-                    await this.rebuildKnowledgeBase();
-                    await this.loadKnowledgeBase();
-                }
-            } catch (driveError) {
-                console.warn('⚠️ Google Drive sync failed:', driveError.message);
-            }
+            // Load knowledge base from local documents folder
+            await this.loadDocumentsFromFolder();
+            console.log(`📚 Loaded ${this.documents.length} documents from local folder`);
             
             if (this.documents.length === 0) {
-                await this.createSampleKnowledgeBase();
+                console.warn('⚠️ No documents found in backend/documents folder');
+                throw new Error('No documents available for training. Please add documents to backend/documents folder.');
             }
             
             this.extractDrugNames();
@@ -60,68 +45,50 @@ class GeminiChatbotService {
         }
     }
 
-    // Load knowledge base
-    async loadKnowledgeBase() {
+    // Load documents từ thư mục backend/documents
+    async loadDocumentsFromFolder() {
         try {
-            const knowledgeBasePath = path.join(__dirname, '../data/knowledge_base.json');
+            const documentsDir = path.join(__dirname, '..', 'documents');
             
+            // Ensure documents directory exists
             try {
-                const data = await fs.readFile(knowledgeBasePath, 'utf8');
-                this.documents = JSON.parse(data);
-            } catch (fileError) {
-                this.documents = [];
-                await this.saveKnowledgeBase();
+                await fs.access(documentsDir);
+            } catch (error) {
+                console.warn('⚠️ Documents directory not found, creating it...');
+                await fs.mkdir(documentsDir, { recursive: true });
+                return;
             }
+            
+            const files = await fs.readdir(documentsDir);
+            const textFiles = files.filter(file => file.endsWith('.txt') || file.endsWith('.md'));
+            
+            console.log(`📁 Found ${textFiles.length} text files in documents folder`);
+            
+            this.documents = [];
+            
+            for (const file of textFiles) {
+                const filePath = path.join(documentsDir, file);
+                const content = await fs.readFile(filePath, 'utf8');
+                
+                if (content.trim()) {
+                    const doc = {
+                        id: file.replace(/\.(txt|md)$/i, ''),
+                        title: file.replace(/\.(txt|md)$/i, '').replace(/_/g, ' '),
+                        content: content.trim(),
+                        source: `Local Document - ${file}`,
+                        lastUpdated: new Date().toISOString(),
+                        type: 'medical_document'
+                    };
+                    
+                    this.documents.push(doc);
+                    console.log(`📄 Loaded: ${file} (${content.length} characters)`);
+                }
+            }
+            
         } catch (error) {
-            console.error('❌ Error loading knowledge base:', error);
+            console.error('❌ Error loading documents from folder:', error);
             throw error;
         }
-    }
-
-    // Save knowledge base
-    async saveKnowledgeBase() {
-        try {
-            const knowledgeBasePath = path.join(__dirname, '../data/knowledge_base.json');
-            const dataDir = path.dirname(knowledgeBasePath);
-            
-            await fs.mkdir(dataDir, { recursive: true });
-            await fs.writeFile(knowledgeBasePath, JSON.stringify(this.documents, null, 2), 'utf8');
-        } catch (error) {
-            console.error('❌ Error saving knowledge base:', error);
-        }
-    }
-
-    // Rebuild from documents folder
-    async rebuildKnowledgeBase() {
-        try {
-            const DocumentProcessor = require('../utils/documentProcessor');
-            const processor = new DocumentProcessor();
-            
-            const documentsDir = path.join(__dirname, '..', 'documents');
-            const outputPath = path.join(__dirname, '..', 'data', 'knowledge_base.json');
-            
-            await processor.buildKnowledgeBase(documentsDir, outputPath);
-        } catch (error) {
-            console.error('❌ Error rebuilding knowledge base:', error);
-        }
-    }
-
-    // Create sample knowledge base
-    async createSampleKnowledgeBase() {
-        console.log('🔨 Creating minimal sample knowledge base...');
-        
-        const sampleDocs = [
-            {
-                id: "no_data_notice",
-                title: "Thông báo không có dữ liệu",
-                content: "Hiện tại hệ thống chưa có dữ liệu từ Google Drive. Vui lòng liên hệ quản trị viên để cập nhật tài liệu y tế. Tôi chỉ có thể trả lời các câu hỏi khi có đầy đủ tài liệu chuyên môn.",
-                source: "System Notice",
-                lastUpdated: new Date().toISOString()
-            }
-        ];
-        
-        this.documents = sampleDocs;
-        await this.saveKnowledgeBase();
     }
 
     // Extract drug names từ knowledge base
@@ -275,7 +242,7 @@ Vui lòng hỏi về một trong những thuốc này hoặc liên hệ quản t
                 return {
                     success: true,
                     data: {
-                        message: "Không tìm thấy thông tin liên quan trong tài liệu hiện có. Vui lòng hỏi về các thuốc khác hoặc liên hệ quản trị viên.",
+                        message: "Không tìm thấy thông tin liên quan trong tài liệu hiện có. Vui lòng kiểm tra lại từ khóa hoặc liên hệ quản trị viên để bổ sung tài liệu.",
                         isAiGenerated: false
                     }
                 };

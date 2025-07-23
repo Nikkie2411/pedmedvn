@@ -1,157 +1,88 @@
-// Chatbot service with Vietnamese text processing and RAG
+// Chatbot service với knowledge base từ local documents
 const fs = require('fs').promises;
 const path = require('path');
-const GoogleDriveService = require('./googleDrive');
-const MedicalDocumentProcessor = require('../utils/medicalDocumentProcessor');
-const EnhancedMedicalProcessor = require('../utils/enhancedMedicalProcessor');
 
 class ChatbotService {
     constructor() {
         this.documents = [];
         this.embeddings = new Map();
         this.isInitialized = false;
-        this.driveService = new GoogleDriveService();
-        this.medicalProcessor = new MedicalDocumentProcessor();
-        this.enhancedProcessor = new EnhancedMedicalProcessor();
     }
 
-    // Initialize chatbot with knowledge base
+    // Initialize chatbot với local documents
     async initialize() {
         try {
-            console.log('🤖 Initializing chatbot service...');
+            console.log('🤖 Initializing original chatbot service...');
             
-            // First load existing knowledge base
-            await this.loadKnowledgeBase();
-            console.log(`📚 Loaded ${this.documents.length} documents from existing knowledge base`);
+            // Load documents from local folder
+            await this.loadDocumentsFromFolder();
+            console.log(`📚 Loaded ${this.documents.length} documents from local folder`);
             
-            // Try to sync documents from Google Drive
-            console.log('🔄 Attempting to sync documents from Google Drive...');
-            try {
-                const synced = await this.driveService.syncDocuments();
-                
-                if (synced) {
-                    console.log('✅ Documents synced from Google Drive - rebuilding knowledge base');
-                    // Rebuild knowledge base with new documents
-                    await this.rebuildKnowledgeBase();
-                    // Reload the updated knowledge base
-                    await this.loadKnowledgeBase();
-                    console.log(`📚 Updated knowledge base now has ${this.documents.length} documents`);
-                } else {
-                    console.log('📝 No new documents from Google Drive - using existing knowledge base');
-                }
-            } catch (driveError) {
-                console.warn('⚠️ Google Drive sync failed:', driveError.message);
-                console.log('📝 Continuing with existing knowledge base');
-            }
-            
-            // Validate knowledge base
             if (this.documents.length === 0) {
-                console.warn('⚠️ No documents in knowledge base! Creating sample data...');
-                await this.createSampleKnowledgeBase();
+                console.warn('⚠️ No documents found in backend/documents folder');
+                throw new Error('No documents available for training. Please add documents to backend/documents folder.');
             }
             
-            // Schedule periodic syncs (every 6 hours) only if Drive is working
-            try {
-                this.driveService.scheduleSync(6);
-            } catch (error) {
-                console.log('📝 Drive scheduling disabled - working offline only');
-            }
+            // Build simple embeddings for search
+            this.buildSimpleEmbeddings();
             
             this.isInitialized = true;
-            console.log(`✅ Chatbot initialized with ${this.documents.length} documents`);
+            console.log(`✅ Original chatbot initialized with ${this.documents.length} documents`);
             
             // Log knowledge base sources for debugging
             const sources = [...new Set(this.documents.map(doc => doc.source))];
             console.log('📊 Knowledge base sources:', sources.join(', '));
             
         } catch (error) {
-            console.error('❌ Failed to initialize chatbot:', error);
+            console.error('❌ Failed to initialize original chatbot:', error);
             throw error;
         }
     }
 
-    // Load knowledge base from preprocessed JSON
-    async loadKnowledgeBase() {
+    // Load documents từ thư mục backend/documents
+    async loadDocumentsFromFolder() {
         try {
-            const knowledgeBasePath = path.join(__dirname, '../data/knowledge_base.json');
-            
-            // Check if knowledge base exists
-            try {
-                const data = await fs.readFile(knowledgeBasePath, 'utf8');
-                this.documents = JSON.parse(data);
-                console.log(`📚 Loaded ${this.documents.length} documents from knowledge base`);
-            } catch (fileError) {
-                // If no knowledge base exists, create empty one
-                console.log('📝 No existing knowledge base found, creating empty one');
-                this.documents = [];
-                await this.saveKnowledgeBase();
-            }
-            
-            // Build simple embeddings for search
-            this.buildSimpleEmbeddings();
-            
-        } catch (error) {
-            console.error('❌ Error loading knowledge base:', error);
-            throw error;
-        }
-    }
-
-    // Save knowledge base to JSON
-    async saveKnowledgeBase() {
-        try {
-            const knowledgeBasePath = path.join(__dirname, '../data/knowledge_base.json');
-            const dataDir = path.dirname(knowledgeBasePath);
-            
-            // Ensure data directory exists
-            await fs.mkdir(dataDir, { recursive: true });
-            
-            await fs.writeFile(knowledgeBasePath, JSON.stringify(this.documents, null, 2), 'utf8');
-            console.log('💾 Knowledge base saved successfully');
-        } catch (error) {
-            console.error('❌ Error saving knowledge base:', error);
-            throw error;
-        }
-    }
-
-    // Rebuild knowledge base from documents folder
-    async rebuildKnowledgeBase() {
-        try {
-            console.log('🔨 Rebuilding knowledge base from documents...');
-            
-            const DocumentProcessor = require('../utils/documentProcessor');
-            const processor = new DocumentProcessor();
-            
             const documentsDir = path.join(__dirname, '..', 'documents');
-            const outputPath = path.join(__dirname, '..', 'data', 'knowledge_base.json');
             
-            await processor.buildKnowledgeBase(documentsDir, outputPath);
-            console.log('✅ Knowledge base rebuilt successfully');
-        } catch (error) {
-            console.error('❌ Error rebuilding knowledge base:', error);
-            // Don't throw - continue with existing knowledge base
-        }
-    }
-
-    // Create sample knowledge base if no documents exist
-    async createSampleKnowledgeBase() {
-        console.log('🔨 Creating minimal sample knowledge base...');
-        
-        const sampleDocs = [
-            {
-                id: "no_data_notice",
-                title: "Thông báo không có dữ liệu",
-                content: "Hiện tại hệ thống chưa có dữ liệu từ Google Drive. Vui lòng liên hệ quản trị viên để cập nhật tài liệu y tế. Tôi chỉ có thể trả lời các câu hỏi khi có đầy đủ tài liệu chuyên môn.",
-                keywords: ["không có dữ liệu", "liên hệ", "quản trị viên", "cập nhật"],
-                source: "System Notice",
-                lastUpdated: new Date().toISOString()
+            // Ensure documents directory exists
+            try {
+                await fs.access(documentsDir);
+            } catch (error) {
+                console.warn('⚠️ Documents directory not found, creating it...');
+                await fs.mkdir(documentsDir, { recursive: true });
+                return;
             }
-        ];
-        
-        this.documents = sampleDocs;
-        await this.saveKnowledgeBase();
-        this.buildSimpleEmbeddings();
-        
-        console.log('⚠️ Created minimal knowledge base with system notice');
+            
+            const files = await fs.readdir(documentsDir);
+            const textFiles = files.filter(file => file.endsWith('.txt') || file.endsWith('.md'));
+            
+            console.log(`📁 Found ${textFiles.length} text files in documents folder`);
+            
+            this.documents = [];
+            
+            for (const file of textFiles) {
+                const filePath = path.join(documentsDir, file);
+                const content = await fs.readFile(filePath, 'utf8');
+                
+                if (content.trim()) {
+                    const doc = {
+                        id: file.replace(/\.(txt|md)$/i, ''),
+                        title: file.replace(/\.(txt|md)$/i, '').replace(/_/g, ' '),
+                        content: content.trim(),
+                        source: `Local Document - ${file}`,
+                        lastUpdated: new Date().toISOString(),
+                        type: 'medical_document'
+                    };
+                    
+                    this.documents.push(doc);
+                    console.log(`� Loaded: ${file} (${content.length} characters)`);
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Error loading documents from folder:', error);
+            throw error;
+        }
     }
 
     // Process Vietnamese text for better search

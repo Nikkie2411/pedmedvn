@@ -1,16 +1,12 @@
-// Groq AI Chatbot Service - MIỄN PHÍ và SIÊU NHANH
+// Groq AI Chatbot Service - MIỄN PHÍ và SIÊU NHANH với local documents
 const Groq = require('groq-sdk');
 const fs = require('fs').promises;
 const path = require('path');
-const GoogleDriveService = require('./googleDrive');
-const EnhancedMedicalProcessor = require('../utils/enhancedMedicalProcessor');
 
 class GroqChatbotService {
     constructor() {
         this.documents = [];
         this.isInitialized = false;
-        this.driveService = new GoogleDriveService();
-        this.enhancedProcessor = new EnhancedMedicalProcessor();
         this.knownDrugs = new Set();
         
         // Initialize Groq AI (MIỄN PHÍ hoàn toàn tại console.groq.com)
@@ -25,26 +21,18 @@ class GroqChatbotService {
         }
     }
 
-    // Initialize với Google Drive data
+    // Initialize với local documents
     async initialize() {
         try {
             console.log('🚀 Initializing Groq AI chatbot service (FREE & FAST)...');
             
-            await this.loadKnowledgeBase();
-            console.log(`📚 Loaded ${this.documents.length} documents from existing knowledge base`);
-            
-            try {
-                const synced = await this.driveService.syncDocuments();
-                if (synced) {
-                    await this.rebuildKnowledgeBase();
-                    await this.loadKnowledgeBase();
-                }
-            } catch (driveError) {
-                console.warn('⚠️ Google Drive sync failed:', driveError.message);
-            }
+            // Load documents from local folder
+            await this.loadDocumentsFromFolder();
+            console.log(`📚 Loaded ${this.documents.length} documents from local folder`);
             
             if (this.documents.length === 0) {
-                await this.createSampleKnowledgeBase();
+                console.warn('⚠️ No documents found in backend/documents folder');
+                throw new Error('No documents available for training. Please add documents to backend/documents folder.');
             }
             
             this.extractDrugNames();
@@ -59,65 +47,50 @@ class GroqChatbotService {
     }
 
     // Load knowledge base
-    async loadKnowledgeBase() {
+    // Load documents từ thư mục backend/documents
+    async loadDocumentsFromFolder() {
         try {
-            const knowledgeBasePath = path.join(__dirname, '../data/knowledge_base.json');
+            const documentsDir = path.join(__dirname, '..', 'documents');
             
+            // Ensure documents directory exists
             try {
-                const data = await fs.readFile(knowledgeBasePath, 'utf8');
-                this.documents = JSON.parse(data);
-            } catch (fileError) {
-                this.documents = [];
-                await this.saveKnowledgeBase();
+                await fs.access(documentsDir);
+            } catch (error) {
+                console.warn('⚠️ Documents directory not found, creating it...');
+                await fs.mkdir(documentsDir, { recursive: true });
+                return;
             }
+            
+            const files = await fs.readdir(documentsDir);
+            const textFiles = files.filter(file => file.endsWith('.txt') || file.endsWith('.md'));
+            
+            console.log(`📁 Found ${textFiles.length} text files in documents folder`);
+            
+            this.documents = [];
+            
+            for (const file of textFiles) {
+                const filePath = path.join(documentsDir, file);
+                const content = await fs.readFile(filePath, 'utf8');
+                
+                if (content.trim()) {
+                    const doc = {
+                        id: file.replace(/\.(txt|md)$/i, ''),
+                        title: file.replace(/\.(txt|md)$/i, '').replace(/_/g, ' '),
+                        content: content.trim(),
+                        source: `Local Document - ${file}`,
+                        lastUpdated: new Date().toISOString(),
+                        type: 'medical_document'
+                    };
+                    
+                    this.documents.push(doc);
+                    console.log(`📄 Loaded: ${file} (${content.length} characters)`);
+                }
+            }
+            
         } catch (error) {
-            console.error('❌ Error loading knowledge base:', error);
+            console.error('❌ Error loading documents from folder:', error);
             throw error;
         }
-    }
-
-    // Save knowledge base
-    async saveKnowledgeBase() {
-        try {
-            const knowledgeBasePath = path.join(__dirname, '../data/knowledge_base.json');
-            const dataDir = path.dirname(knowledgeBasePath);
-            
-            await fs.mkdir(dataDir, { recursive: true });
-            await fs.writeFile(knowledgeBasePath, JSON.stringify(this.documents, null, 2), 'utf8');
-        } catch (error) {
-            console.error('❌ Error saving knowledge base:', error);
-        }
-    }
-
-    // Rebuild from documents folder
-    async rebuildKnowledgeBase() {
-        try {
-            const DocumentProcessor = require('../utils/documentProcessor');
-            const processor = new DocumentProcessor();
-            
-            const documentsDir = path.join(__dirname, '..', 'documents');
-            const outputPath = path.join(__dirname, '..', 'data', 'knowledge_base.json');
-            
-            await processor.buildKnowledgeBase(documentsDir, outputPath);
-        } catch (error) {
-            console.error('❌ Error rebuilding knowledge base:', error);
-        }
-    }
-
-    // Create sample knowledge base
-    async createSampleKnowledgeBase() {
-        const sampleDocs = [
-            {
-                id: "no_data_notice",
-                title: "Thông báo không có dữ liệu",
-                content: "Hiện tại hệ thống chưa có dữ liệu từ Google Drive. Vui lòng liên hệ quản trị viên để cập nhật tài liệu y tế.",
-                source: "System Notice",
-                lastUpdated: new Date().toISOString()
-            }
-        ];
-        
-        this.documents = sampleDocs;
-        await this.saveKnowledgeBase();
     }
 
     // Extract drug names

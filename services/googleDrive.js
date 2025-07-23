@@ -117,10 +117,49 @@ class GoogleDriveService {
             
             // Test connection with a simple API call
             try {
+                console.log('🧪 Testing Google Drive API connection...');
                 const testResponse = await this.drive.about.get({ fields: 'user' });
                 console.log(`👤 Connected as: ${testResponse.data.user.emailAddress}`);
+                
+                // Additional test: Check folder accessibility
+                if (this.folderId) {
+                    try {
+                        const folderTest = await this.drive.files.get({
+                            fileId: this.folderId,
+                            fields: 'id,name'
+                        });
+                        console.log(`📁 Folder accessible: ${folderTest.data.name}`);
+                    } catch (folderError) {
+                        console.warn(`⚠️ Folder access test failed: ${folderError.message}`);
+                        if (folderError.code === 404) {
+                            console.warn('💡 Drive folder not found or not shared with service account');
+                        }
+                    }
+                }
+                
             } catch (testError) {
-                console.warn('⚠️ Google Drive API connection test failed:', testError.message);
+                console.error('⚠️ Google Drive API connection test failed:', testError.message);
+                
+                // Detailed JWT error diagnosis
+                if (testError.message.includes('invalid_grant')) {
+                    console.error('🚨 JWT SIGNATURE ERROR DETECTED:');
+                    console.error('   Possible causes:');
+                    console.error('   1. Service Account Key expired or revoked');
+                    console.error('   2. Clock skew between server and Google');
+                    console.error('   3. Service Account disabled');
+                    console.error('   4. Invalid key format or corruption');
+                    console.error('');
+                    console.error('   💡 SOLUTION: Generate new service account key:');
+                    console.error('   1. Go to Google Cloud Console');
+                    console.error('   2. IAM & Admin → Service Accounts');
+                    console.error('   3. Select pedmed-vnch service account');
+                    console.error('   4. Keys tab → Add Key → Create New Key');
+                    console.error('   5. Download JSON and update GOOGLE_SERVICE_ACCOUNT_KEY_BASE64');
+                    console.error('');
+                }
+                
+                // Continue with initialization but mark as limited
+                console.warn('⚠️ Continuing with limited Google Drive functionality');
             }
             
             return true;
@@ -134,9 +173,9 @@ class GoogleDriveService {
     }
 
     /**
-     * Lấy danh sách files từ Google Drive folder
+     * Lấy danh sách files từ Google Drive folder với retry mechanism
      */
-    async getFilesFromFolder() {
+    async getFilesFromFolder(retryCount = 0) {
         if (!this.drive) {
             throw new Error('Google Drive not initialized');
         }
@@ -153,6 +192,28 @@ class GoogleDriveService {
             return files;
         } catch (error) {
             console.error('❌ Error fetching files from Google Drive:', error.message);
+            
+            // JWT signature retry logic
+            if (error.message.includes('invalid_grant') && retryCount < 2) {
+                console.log(`🔄 Retrying after JWT error (attempt ${retryCount + 1}/3)...`);
+                
+                // Wait a bit before retry (in case of temporary issue)
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Try to reinitialize auth
+                try {
+                    await this.initialize();
+                    return await this.getFilesFromFolder(retryCount + 1);
+                } catch (retryError) {
+                    console.error('❌ Retry initialization failed:', retryError.message);
+                }
+            }
+            
+            if (error.message.includes('invalid_grant')) {
+                console.error('🚨 Persistent JWT error - service account key needs renewal');
+                console.error('📝 Using local knowledge base only until key is fixed');
+            }
+            
             return [];
         }
     }
