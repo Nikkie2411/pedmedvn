@@ -22,11 +22,18 @@ class GoogleDriveService {
         try {
             let auth;
             
-            // TRY 1: Sử dụng service account từ environment variable (cho Render/production)
-            if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
-                console.log('🔐 Using Google Service Account from environment variable');
+            // TRY 1: Sử dụng base64 encoded service account (RECOMMENDED for Render)
+            if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64) {
+                console.log('🔐 Using Base64 encoded Google Service Account');
                 try {
-                    const serviceAccountKey = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+                    const serviceAccountJson = Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64, 'base64').toString('utf8');
+                    const serviceAccountKey = JSON.parse(serviceAccountJson);
+                    
+                    // Verify required fields
+                    if (!serviceAccountKey.private_key || !serviceAccountKey.client_email) {
+                        throw new Error('Invalid service account: missing private_key or client_email');
+                    }
+                    
                     auth = new google.auth.GoogleAuth({
                         credentials: serviceAccountKey,
                         scopes: [
@@ -34,12 +41,38 @@ class GoogleDriveService {
                             'https://www.googleapis.com/auth/documents.readonly'
                         ]
                     });
+                    console.log('✅ Base64 service account decoded and configured');
                 } catch (parseError) {
-                    console.error('❌ Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY:', parseError.message);
+                    console.error('❌ Failed to decode/parse GOOGLE_SERVICE_ACCOUNT_KEY_BASE64:', parseError.message);
                     return false;
                 }
             }
-            // TRY 2: Sử dụng service account file (cho local development)
+            // TRY 2: Sử dụng direct JSON service account từ environment variable
+            else if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+                console.log('🔐 Using Google Service Account from environment variable (direct JSON)');
+                try {
+                    const serviceAccountKey = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+                    
+                    // Verify required fields
+                    if (!serviceAccountKey.private_key || !serviceAccountKey.client_email) {
+                        throw new Error('Invalid service account: missing private_key or client_email');
+                    }
+                    
+                    auth = new google.auth.GoogleAuth({
+                        credentials: serviceAccountKey,
+                        scopes: [
+                            'https://www.googleapis.com/auth/drive.readonly',
+                            'https://www.googleapis.com/auth/documents.readonly'
+                        ]
+                    });
+                    console.log('✅ Direct JSON service account configured');
+                } catch (parseError) {
+                    console.error('❌ Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY:', parseError.message);
+                    console.error('💡 Try using GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 instead');
+                    return false;
+                }
+            }
+            // TRY 3: Sử dụng service account file (cho local development)
             else {
                 console.log('📁 Trying to use service account key file');
                 const keyFiles = [
@@ -58,9 +91,10 @@ class GoogleDriveService {
                 
                 if (!keyFile) {
                     console.warn('⚠️ Google Drive service account key not found. Skipping Drive integration.');
-                    console.warn('💡 To enable Google Drive integration:');
-                    console.warn('   1. Set GOOGLE_SERVICE_ACCOUNT_KEY environment variable, OR');
-                    console.warn('   2. Place service account JSON file in project root');
+                    console.warn('💡 To enable Google Drive integration on Render:');
+                    console.warn('   1. Set GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 environment variable (RECOMMENDED), OR');
+                    console.warn('   2. Set GOOGLE_SERVICE_ACCOUNT_KEY environment variable, OR');
+                    console.warn('   3. Place service account JSON file in project root (local only)');
                     return false;
                 }
 
@@ -71,6 +105,7 @@ class GoogleDriveService {
                         'https://www.googleapis.com/auth/documents.readonly'
                     ]
                 });
+                console.log('✅ File-based service account configured');
             }
 
             const authClient = await auth.getClient();
@@ -79,9 +114,21 @@ class GoogleDriveService {
             this.docs = google.docs({ version: 'v1', auth: authClient });
             
             console.log('✅ Google Drive API initialized successfully');
+            
+            // Test connection with a simple API call
+            try {
+                const testResponse = await this.drive.about.get({ fields: 'user' });
+                console.log(`👤 Connected as: ${testResponse.data.user.emailAddress}`);
+            } catch (testError) {
+                console.warn('⚠️ Google Drive API connection test failed:', testError.message);
+            }
+            
             return true;
         } catch (error) {
             console.error('❌ Failed to initialize Google Drive API:', error.message);
+            if (error.message.includes('invalid_grant')) {
+                console.error('💡 JWT Signature error - check service account key format and expiration');
+            }
             return false;
         }
     }
