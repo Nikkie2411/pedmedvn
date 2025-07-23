@@ -1,163 +1,117 @@
 ﻿Linezolid
+
 1. Phân loại dược lý
-Kháng sinh nhóm oxazolidinon1
-2.1. Liều thông thường trẻ sơ sinh
-Liều chung:
+Kháng sinh nhóm oxazolidinone
+
+2. Liều thông thường trẻ sơ sinh
+- Liều chung:
 * Tuổi thai ≤ 34 tuần & Tuổi sau sinh ≤ 7 ngày: Tiêm truyền tĩnh mạch/Uống: 10 mg/kg/lần q12h
 * Tuổi thai ≤ 34 tuần & Tuổi sau sinh > 7 ngày: Tiêm truyền tĩnh mạch/Uống: 10 mg/kg/lần q8h
 * Tuổi thai ≥ 35 tuần: Tiêm truyền tĩnh mạch/Uống: 10 mg/kg/lần q8h
-Viêm phổi bệnh viện
-Uống/tiêm, truyền tĩnh mạch: 10 mg/kg/lần q8h, trong 10 - 14 ngày.
- 
-Viêm phổi cộng đồng, gồm cả những trường hợp có nhiễm khuẩn huyết
-Uống/tiêm, truyền tĩnh mạch: 10 mg/kg/lần q8h, trong 10 - 14 ngày.
+- Viêm phổi bệnh viện: Uống/tiêm, truyền tĩnh mạch: 10 mg/kg/lần q8h, trong 10 - 14 ngày.
+- Viêm phổi cộng đồng, gồm cả những trường hợp có nhiễm khuẩn huyết: Uống/tiêm, truyền tĩnh mạch: 10 mg/kg/lần q8h, trong 10 - 14 ngày.
+- Nhiễm khuẩn da và cấu trúc da có biến chứng: Uống/tiêm, truyền tĩnh mạch: 10 mg/kg/lần q8h, trong 10 - 14 ngày.
+- Nhiễm khuẩn da và cấu trúc da không có biến chứng: Uống 10 mg/kg/lần q8h, trong 10 - 14 ngày.
+- Nhiễm khuẩn do Enterococcus faecium đã kháng vancomycin, gồm cả những trường hợp có nhiễm khuẩn huyết: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h, trong 14 - 28 ngày.
 
-
-Nhiễm khuẩn da và cấu trúc da có biến chứng
-Uống/tiêm, truyền tĩnh mạch: 10 mg/kg/lần q8h, trong 10 - 14 ngày.
-
-
-Nhiễm khuẩn da và cấu trúc da không có biến chứng
-Uống 10 mg/kg/lần q8h, trong 10 - 14 ngày.
-
-
-Nhiễm khuẩn do Enterococcus faecium đã kháng vancomycin, gồm cả những trường hợp có nhiễm khuẩn huyết
-Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h, trong 14 - 28 ngày.
-
-
-2.2. Liều thông thường trẻ em
-Liều chung6:
-- Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h. Liều tối đa: 600 mg/lần
-- Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 600 mg/lần q12h
-
-
-Viêm phổi bệnh viện
-- Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h, trong 10 - 14 ngày. Liều tối đa: 600 mg/lần
-- Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 600 mg/lần q12h, trong 10 - 14 ngày.
- 
-Viêm phổi cộng đồng, gồm cả những trường hợp có nhiễm khuẩn huyết
-- Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h, trong 10 - 14 ngày. Liều tối đa: 600 mg/lần
-- Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 600 mg/lần q12h, trong 10 - 14 ngày.
-Nhiễm khuẩn da và cấu trúc da có biến chứng
-- Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h, trong 10 - 14 ngày. Liều tối đa: 600 mg/lần
-- Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 600 mg/lần q12h, trong 10 - 14 ngày.
-Nhiễm khuẩn da và cấu trúc da không có biến chứng
-- Trẻ em < 5 tuổi: Uống 10 mg/kg/lần q8h, trong 10 - 14 ngày.
-- Trẻ em 5 - 11 tuổi: Uống 10 mg/kg/lần q12h, trong 10 - 14 ngày. Liều tối đa: 600 mg/lần
-- Trẻ em ≥ 12 tuổi: Uống 600 mg/lần q12h, trong 10 - 14 ngày.
-
-
-Nhiễm khuẩn do Enterococcus faecium đã kháng vancomycin, gồm cả những trường hợp có nhiễm khuẩn huyết
-- Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h, trong 14 - 28 ngày. Liều tối đa: 600 mg/lần
-- Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 600 mg/lần q12h, trong 14 - 28 ngày.
-
-
-Nhiễm khuẩn huyết, viêm nội tâm mạc nhiễm khuẩn, nhiễm khuẩn do vi khuẩn gram dương đã kháng thuốc  (Enterococcus faecium kháng vancomycin, Staphylococcus aureus kháng methicillin)
-- Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h, trong 14 - 28 ngày. Liều tối đa: 600 mg/lần
-- Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 600 mg/lần q12h, trong 14 - 28 ngày.
-
-
-Viêm phúc mạc (thẩm phân phúc mạc)
-- Trẻ em < 5 tuổi: Uống 10 mg/kg/lần q8h, trong 14 - 21 ngày. Liều tối đa: 600 mg/lần
-- Trẻ em 5 - 11 tuổi: Uống 10 mg/kg/lần q12h, trong 14 - 21 ngày. Liều tối đa: 600 mg/lần
-- Trẻ em ≥ 12 tuổi: Uống 600 mg/lần q12h, trong 14 - 21 ngày.
-
-
-Nhiễm trùng liên quan đến ống thông trong thẩm phân phúc mạc:
-- Trẻ em < 5 tuổi: Uống 10 mg/kg/lần q8h, trong 14 - 28 ngày. Liều tối đa: 600 mg/lần
-- Trẻ em 5 - 11 tuổi: Uống 10 mg/kg/lần q12h, trong 14 - 28 ngày. Liều tối đa: 600 mg/lần
-- Trẻ em ≥ 12 tuổi: Uống 600 mg/lần q12h, trong 14 - 28 ngày.
-
-
-Viêm màng não, gồm cả những trường hợp liên quan đến chăm sóc y tế:
-- Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h, trong 10 - 14 ngày. Liều tối đa: 600 mg/lần
-- Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 600 mg/lần q12h, trong 10 - 14 ngày.
+3. Liều thông thường trẻ em
+- Liều chung:
+* Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h. Liều tối đa: 600 mg/lần
+* Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 600 mg/lần q12h
+- Viêm phổi bệnh viện
+* Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h, trong 10 - 14 ngày. Liều tối đa: 600 mg/lần
+* Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 600 mg/lần q12h, trong 10 - 14 ngày.
+- Viêm phổi cộng đồng, gồm cả những trường hợp có nhiễm khuẩn huyết
+* Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h, trong 10 - 14 ngày. Liều tối đa: 600 mg/lần
+* Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 600 mg/lần q12h, trong 10 - 14 ngày.
+- Nhiễm khuẩn da và cấu trúc da có biến chứng
+* Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h, trong 10 - 14 ngày. Liều tối đa: 600 mg/lần
+* Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 600 mg/lần q12h, trong 10 - 14 ngày.
+- Nhiễm khuẩn da và cấu trúc da không có biến chứng
+* Trẻ em < 5 tuổi: Uống 10 mg/kg/lần q8h, trong 10 - 14 ngày.
+* Trẻ em 5 - 11 tuổi: Uống 10 mg/kg/lần q12h, trong 10 - 14 ngày. Liều tối đa: 600 mg/lần
+* Trẻ em ≥ 12 tuổi: Uống 600 mg/lần q12h, trong 10 - 14 ngày.
+- Nhiễm khuẩn do Enterococcus faecium đã kháng vancomycin, gồm cả những trường hợp có nhiễm khuẩn huyết
+* Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h, trong 14 - 28 ngày. Liều tối đa: 600 mg/lần
+* Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 600 mg/lần q12h, trong 14 - 28 ngày.
+- Nhiễm khuẩn huyết, viêm nội tâm mạc nhiễm khuẩn, nhiễm khuẩn do vi khuẩn gram dương đã kháng thuốc  (Enterococcus faecium kháng vancomycin, Staphylococcus aureus kháng methicillin)
+* Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h, trong 14 - 28 ngày. Liều tối đa: 600 mg/lần
+* Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 600 mg/lần q12h, trong 14 - 28 ngày.
+- Viêm phúc mạc (thẩm phân phúc mạc)
+* Trẻ em < 5 tuổi: Uống 10 mg/kg/lần q8h, trong 14 - 21 ngày. Liều tối đa: 600 mg/lần
+* Trẻ em 5 - 11 tuổi: Uống 10 mg/kg/lần q12h, trong 14 - 21 ngày. Liều tối đa: 600 mg/lần
+* Trẻ em ≥ 12 tuổi: Uống 600 mg/lần q12h, trong 14 - 21 ngày.
+- Nhiễm trùng liên quan đến ống thông trong thẩm phân phúc mạc:
+* Trẻ em < 5 tuổi: Uống 10 mg/kg/lần q8h, trong 14 - 28 ngày. Liều tối đa: 600 mg/lần
+* Trẻ em 5 - 11 tuổi: Uống 10 mg/kg/lần q12h, trong 14 - 28 ngày. Liều tối đa: 600 mg/lần
+* Trẻ em ≥ 12 tuổi: Uống 600 mg/lần q12h, trong 14 - 28 ngày.
+- Viêm màng não, gồm cả những trường hợp liên quan đến chăm sóc y tế:
+* Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h, trong 10 - 14 ngày. Liều tối đa: 600 mg/lần
+* Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 600 mg/lần q12h, trong 10 - 14 ngày.
 Nhiễm khuẩn xương khớp:
-- Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h, trong 14 - 28 ngày. Liều tối đa: 600 mg/lần
-- Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q12h, trong 14 - 28 ngày. Liều tối đa: 600 mg/lần. 
+* Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h, trong 14 - 28 ngày. Liều tối đa: 600 mg/lần
+* Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q12h, trong 14 - 28 ngày. Liều tối đa: 600 mg/lần. 
+- Bệnh lao kháng thuốc: Linezolid được dùng trong phác đồ phối hợp: 
+* Trẻ em < 12 tuổi:
+** Cân nặng từ 5 - 10 kg: Uống/tiêm, truyền tĩnh mạch 15 mg/kg/lần q24h
+** Cân nặng từ 10 - 23 kg: Uống/tiêm, truyền tĩnh mạch 12 mg/kg/lần q24h
+** Cân nặng > 23 kg: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q24h. Liều tối đa: 600 mg/lần. 
+* Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q24h. Liều tối đa: 600 mg/lần. 
+- Nhiễm khuẩn do vi khuẩn Mycobacteria không phải lao: Linezolid được dùng trong phác đồ phối hợp: 
+* Bệnh nhân có tình trạng xơ nang: 
+** Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h. Liều tối đa: 600 mg/lần. 
+** Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q12h hoặc q24h. Liều tối đa: 600 mg/lần. 
+* Bệnh nhân không có tình trạng xơ nang: 
+** Trẻ em < 10 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q12h. Liều tối đa: 300 mg/lần
+** Trẻ em ≥ 10 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q24h. Liều tối đa: 600 mg/lần
+** Trẻ em > 12 tuổi: Uống/tiêm, truyền tĩnh mạch 600 mg/lần q12h hoặc q24h.
 
+4. Hiệu chỉnh liều theo chức năng thận
+- Suy thận: không cần hiệu chỉnh liều
+- Lọc máu ngắt quãng: dùng liều thông thường sau khi kết thúc lọc máu
+- Thẩm phân phúc mạc: không có khuyến cáo hiệu chỉnh liều trên trẻ em. Tuy nhiên, trên người lớn: không cần hiệu chỉnh liều
+- Lọc máu liên tục: không có khuyến cáo hiệu chỉnh liều trên trẻ em. Tuy nhiên, trên người lớn: không cần hiệu chỉnh liều
 
-Bệnh lao kháng thuốc:
-Linezolid được dùng trong phác đồ phối hợp: 
-- Trẻ em < 12 tuổi:
-* Cân nặng từ 5 - 10 kg: Uống/tiêm, truyền tĩnh mạch 15 mg/kg/lần q24h
-* Cân nặng từ 10 - 23 kg: Uống/tiêm, truyền tĩnh mạch 12 mg/kg/lần q24h
-* Cân nặng > 23 kg: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q24h. Liều tối đa: 600 mg/lần. 
-- Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q24h. Liều tối đa: 600 mg/lần. 
-Nhiễm khuẩn do vi khuẩn Mycobacteria không phải lao6:
-Linezolid được dùng trong phác đồ phối hợp: 
-- Bệnh nhân có tình trạng xơ nang: 
-* Trẻ em < 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q8h. Liều tối đa: 600 mg/lần. 
-* Trẻ em ≥ 12 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q12h hoặc q24h. Liều tối đa: 600 mg/lần. 
-- Bệnh nhân không có tình trạng xơ nang: 
-* Trẻ em < 10 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q12h. Liều tối đa: 300 mg/lần
-* Trẻ em ≥ 10 tuổi: Uống/tiêm, truyền tĩnh mạch 10 mg/kg/lần q24h. Liều tối đa: 600 mg/lần
-* Trẻ em > 12 tuổi: Uống/tiêm, truyền tĩnh mạch 600 mg/lần q12h hoặc q24h. 
-2.3. Hiệu chỉnh liều theo chức năng thận
-- Suy thận: không cần hiệu chỉnh liều1
-- Lọc máu ngắt quãng: dùng liều thông thường sau khi kết thúc lọc máu1
-- Thẩm phân phúc mạc: không có khuyến cáo hiệu chỉnh liều trên trẻ em. Tuy nhiên, trên người lớn: không cần hiệu chỉnh liều6   
-- Lọc máu liên tục: không có khuyến cáo hiệu chỉnh liều trên trẻ em. Tuy nhiên, trên người lớn: không cần hiệu chỉnh liều6. 
-
-
-2.4. Hiệu chỉnh liều theo chức năng gan
+5. Hiệu chỉnh liều theo chức năng gan
 - Suy gan nhẹ và vừa (Child Pugh A hoặc B): không cần hiệu chỉnh liều
 - Suy gan nặng: không có khuyến cáo hiệu chỉnh liều. Thận trọng khi dùng liều thông thường.
-3. Chống chỉ định
+
+6. Chống chỉ định
 - Bệnh nhân có tiền sử dị ứng với Linezolid
-- Bệnh nhân đang sử dụng, hoặc đã sử dụng trong vòng 2 tuần trước đó một trong các thuốc ức chế monoamin oxidase (MAO) như isocarboxamid, phenelzin, selegilin, tranylcypromin1.
-4. Tác dụng không mong muốn điển hình và thận trọng
-Nhiễm trùng Clostridioides difficile
-- Biểu hiện: tiêu chảy do viêm đại tràng giả mạc và tiêu chảy liên quan đến Clostridioides difficile
+- Bệnh nhân đang sử dụng, hoặc đã sử dụng trong vòng 2 tuần trước đó một trong các thuốc ức chế monoamin oxidase (MAO) như isocarboxamid, phenelzin, selegilin, tranylcypromin
 
-
-- Thời gian khởi phát: Khác nhau; có thể khởi phát vào ngày đầu điều trị hoặc ≤ 3 tháng sau khi dùng linezolid.  
-
-
-- Yếu tố nguy cơ:
-* Phơi nhiễm với kháng sinh 
-* Thời gian nằm viện kéo dài 
-* Suy giảm miễn dịch 
-* Bệnh lý nền nghiêm trọng 
-* Phẫu thuật đường tiêu hoá 
-* Sử dụng các thuốc chống loét dạ dày - tá tràng (PPI, chẹn H2)
-* Hoá trị 
-
-
-- Xử trí: Không có thông tin
-
-
-Nhiễm toan lactic
-- Biểu hiện: Bệnh nhân bị buồn nôn và nôn tái phát. Nhiễm toan không rõ nguyên nhân, nồng độ bicarbonat trong máu thấp, nồng độ lactat đạt đỉnh dao động từ 3 - 38 mmol/L. Nhiễm toan lactic có thể hồi phục trong vòng 15 ngày sau khi ngừng linezolid; tuy nhiên, một số trường hợp có thể mất nhiều thời gian hơn để xử trí hoặc dẫn đến tử vong
-
-
-- Thời gian khởi phát: Khác nhau; có thể khởi phát vào ngày đầu điều trị hoặc ≤ 109 ngày sau khi dùng linezolid
-
-
-- Yếu tố nguy cơ:
-* Sử dụng linezolid kéo dài (≥28 ngày)
-* Nồng độ đáy của thuốc > 2 mg/L khi dùng trong thời gian dài
-
-
-- Xử trí: Ngừng điều trị linezolid. 
-
-
-Ức chế tủy xương
-- Biểu hiện: thiếu máu, thiếu máu bất sản, giảm bạch cầu, giảm tiểu cầu. Có thể hồi phục khi ngừng điều trị và thường mất 1 - 2 tuần để phục hồi. 
-
-
-- Thời gian khởi phát: Thường xảy ra sau ≥ 14 ngày dùng linezolid. 
-
-
-- Yếu tố nguy cơ:
-* Sử dụng linezolid kéo dài (≥ 28 ngày)
-* Số lượng tiểu cầu ban đầu ≤ 200 x 109/L
-* Liều dùng hàng ngày cao hơn liều khuyến cáo
-* Nồng độ đáy của thuốc > 2 mg/L khi dùng trong thời gian dài
-* Bệnh nhân có sẵn tình trạng ức chế tuỷ xương 
-* Suy thận nặng hoặc suy gan từ trung bình đến nặng 
-* Sử dụng đồng thời các thuốc gây ức chế tuỷ xương 
-* Bệnh nhân có nhiễm trùng mạn tính (có dùng phối hợp hoặc sử dụng kháng sinh khác trước đó) 
+7. Tác dụng không mong muốn điển hình và thận trọng
+- Nhiễm trùng Clostridioides difficile
+* Biểu hiện: tiêu chảy do viêm đại tràng giả mạc và tiêu chảy liên quan đến Clostridioides difficile
+* Thời gian khởi phát: Khác nhau; có thể khởi phát vào ngày đầu điều trị hoặc ≤ 3 tháng sau khi dùng linezolid.  
+* Yếu tố nguy cơ:
+** Phơi nhiễm với kháng sinh 
+** Thời gian nằm viện kéo dài 
+** Suy giảm miễn dịch 
+** Bệnh lý nền nghiêm trọng 
+** Phẫu thuật đường tiêu hoá 
+** Sử dụng các thuốc chống loét dạ dày - tá tràng (PPI, chẹn H2)
+** Hoá trị 
+* Xử trí: Không có thông tin
+- Nhiễm toan lactic
+* Biểu hiện: Bệnh nhân bị buồn nôn và nôn tái phát. Nhiễm toan không rõ nguyên nhân, nồng độ bicarbonat trong máu thấp, nồng độ lactat đạt đỉnh dao động từ 3 - 38 mmol/L. Nhiễm toan lactic có thể hồi phục trong vòng 15 ngày sau khi ngừng linezolid; tuy nhiên, một số trường hợp có thể mất nhiều thời gian hơn để xử trí hoặc dẫn đến tử vong
+* Thời gian khởi phát: Khác nhau; có thể khởi phát vào ngày đầu điều trị hoặc ≤ 109 ngày sau khi dùng linezolid
+* Yếu tố nguy cơ:
+** Sử dụng linezolid kéo dài (≥28 ngày)
+** Nồng độ đáy của thuốc > 2 mg/L khi dùng trong thời gian dài
+* Xử trí: Ngừng điều trị linezolid. 
+- Ức chế tủy xương
+* Biểu hiện: thiếu máu, thiếu máu bất sản, giảm bạch cầu, giảm tiểu cầu. Có thể hồi phục khi ngừng điều trị và thường mất 1 - 2 tuần để phục hồi. 
+* Thời gian khởi phát: Thường xảy ra sau ≥ 14 ngày dùng linezolid. 
+* Yếu tố nguy cơ:
+** Sử dụng linezolid kéo dài (≥ 28 ngày)
+** Số lượng tiểu cầu ban đầu ≤ 200 x 109/L
+** Liều dùng hàng ngày cao hơn liều khuyến cáo
+** Nồng độ đáy của thuốc > 2 mg/L khi dùng trong thời gian dài
+** Bệnh nhân có sẵn tình trạng ức chế tuỷ xương 
+** Suy thận nặng hoặc suy gan từ trung bình đến nặng 
+** Sử dụng đồng thời các thuốc gây ức chế tuỷ xương 
+** Bệnh nhân có nhiễm trùng mạn tính (có dùng phối hợp hoặc sử dụng kháng sinh khác trước đó) 
 
 
 - Xử trí: Ngừng điều trị linezolid. 
