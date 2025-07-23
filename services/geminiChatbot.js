@@ -261,8 +261,6 @@ Vui lòng hỏi về một trong những thuốc này hoặc liên hệ quản t
                     success: true,
                     data: {
                         message: validation.message,
-                        sources: [],
-                        confidence: 0,
                         isAiGenerated: false
                     }
                 };
@@ -278,8 +276,6 @@ Vui lòng hỏi về một trong những thuốc này hoặc liên hệ quản t
                     success: true,
                     data: {
                         message: "Không tìm thấy thông tin liên quan trong tài liệu hiện có. Vui lòng hỏi về các thuốc khác hoặc liên hệ quản trị viên.",
-                        sources: [],
-                        confidence: 0,
                         isAiGenerated: false
                     }
                 };
@@ -323,12 +319,6 @@ Hãy trả lời một cách chi tiết, chính xác và dễ hiểu:`;
                 success: true,
                 data: {
                     message: aiAnswer,
-                    sources: relevantDocs.slice(0, 2).map(doc => ({
-                        title: doc.title,
-                        source: doc.source,
-                        confidence: Math.round(doc.score / relevantDocs[0].score * 100)
-                    })),
-                    confidence: Math.min(95, Math.round(relevantDocs[0].score / 10 * 100)),
                     responseTime,
                     isAiGenerated: true,
                     aiModel: 'Google Gemini 1.5 Flash'

@@ -238,8 +238,6 @@ Vui lòng hỏi về một trong những thuốc này.`
                     success: true,
                     data: {
                         message: validation.message,
-                        sources: [],
-                        confidence: 0,
                         isAiGenerated: false
                     }
                 };
@@ -253,8 +251,6 @@ Vui lòng hỏi về một trong những thuốc này.`
                     success: true,
                     data: {
                         message: "Không tìm thấy thông tin liên quan trong tài liệu hiện có.",
-                        sources: [],
-                        confidence: 0,
                         isAiGenerated: false
                     }
                 };
@@ -301,12 +297,6 @@ ${context}`
                 success: true,
                 data: {
                     message: aiAnswer,
-                    sources: relevantDocs.slice(0, 2).map(doc => ({
-                        title: doc.title,
-                        source: doc.source,
-                        confidence: Math.round(doc.score / relevantDocs[0].score * 100)
-                    })),
-                    confidence: Math.min(95, Math.round(relevantDocs[0].score / 10 * 100)),
                     responseTime,
                     isAiGenerated: true,
                     aiModel: 'OpenAI GPT-3.5 Turbo'

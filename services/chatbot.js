@@ -454,11 +454,6 @@ class ChatbotService {
         if (relevantSentences.length === 0) {
             return {
                 answer: "Mặc dù tôi tìm thấy tài liệu liên quan, nhưng không có thông tin cụ thể cho câu hỏi này. Vui lòng hỏi chi tiết hơn hoặc kiểm tra lại từ khóa.",
-                sources: relevantDocs.slice(0, 1).map(doc => ({
-                    title: doc.title,
-                    source: doc.source,
-                    confidence: Math.round(doc.score / relevantDocs[0].score * 100)
-                })),
                 confidence: Math.round(confidence * 100)
             };
         }
@@ -477,11 +472,6 @@ class ChatbotService {
         
         return {
             answer: cleanAnswer,
-            sources: relevantDocs.slice(0, 2).map(doc => ({
-                title: doc.title,
-                source: doc.source,
-                confidence: Math.round(doc.score / relevantDocs[0].score * 100)
-            })),
             confidence: Math.round(confidence * 100)
         };
     }
@@ -502,7 +492,6 @@ class ChatbotService {
                     success: true,
                     data: {
                         answer: validation.message,
-                        sources: [],
                         confidence: 0,
                         responseTime: 0
                     }
@@ -527,7 +516,6 @@ class ChatbotService {
                 success: true,
                 data: {
                     message: response.answer,
-                    sources: response.sources,
                     confidence: response.confidence,
                     responseTime: responseTime
                 }
@@ -552,8 +540,7 @@ class ChatbotService {
                 message,
                 response: response.answer,
                 confidence: response.confidence,
-                responseTime,
-                sources: response.sources.length
+                responseTime
             };
             
             // In a production environment, you might want to store this in a database
