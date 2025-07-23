@@ -114,6 +114,10 @@ async function startServer() {
   app.use('/api', passwordRoutes);
   app.use('/api/monitoring', monitoringRoutes);
   app.use('/api/chatbot', chatbotRoutes);
+  
+  // AI Chatbot routes (mới)
+  const aiChatbotRoutes = require('./routes/aiChatbot');
+  app.use('/api/ai-chatbot', aiChatbotRoutes);
 
   const server = app.listen(PORT, '0.0.0.0', () => logger.info(`Server running on port ${PORT}`));
   app.locals.wss = setupWebSocket(server);

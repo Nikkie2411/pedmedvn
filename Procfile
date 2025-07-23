@@ -1,1 +1,2 @@
-web: node app.js
+# Procfile for Heroku deployment
+web: npm start
