@@ -20,21 +20,58 @@ class GoogleDriveService {
      */
     async initialize() {
         try {
-            // Sử dụng service account key có sẵn
-            const keyFile = path.join(__dirname, '..', '..', 'vietanhprojects-98c888ec87d3.json');
+            let auth;
             
-            if (!fs.existsSync(keyFile)) {
-                console.warn('⚠️ Google Drive service account key not found. Skipping Drive integration.');
-                return false;
+            // TRY 1: Sử dụng service account từ environment variable (cho Render/production)
+            if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+                console.log('🔐 Using Google Service Account from environment variable');
+                try {
+                    const serviceAccountKey = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+                    auth = new google.auth.GoogleAuth({
+                        credentials: serviceAccountKey,
+                        scopes: [
+                            'https://www.googleapis.com/auth/drive.readonly',
+                            'https://www.googleapis.com/auth/documents.readonly'
+                        ]
+                    });
+                } catch (parseError) {
+                    console.error('❌ Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY:', parseError.message);
+                    return false;
+                }
             }
+            // TRY 2: Sử dụng service account file (cho local development)
+            else {
+                console.log('📁 Trying to use service account key file');
+                const keyFiles = [
+                    path.join(__dirname, '..', '..', 'vietanhprojects-98c888ec87d3.json'),
+                    path.join(__dirname, '..', '..', 'vietanhprojects-a9f573862a83.json')
+                ];
+                
+                let keyFile = null;
+                for (const file of keyFiles) {
+                    if (fs.existsSync(file)) {
+                        keyFile = file;
+                        console.log(`📋 Found service account key: ${path.basename(file)}`);
+                        break;
+                    }
+                }
+                
+                if (!keyFile) {
+                    console.warn('⚠️ Google Drive service account key not found. Skipping Drive integration.');
+                    console.warn('💡 To enable Google Drive integration:');
+                    console.warn('   1. Set GOOGLE_SERVICE_ACCOUNT_KEY environment variable, OR');
+                    console.warn('   2. Place service account JSON file in project root');
+                    return false;
+                }
 
-            const auth = new google.auth.GoogleAuth({
-                keyFile: keyFile,
-                scopes: [
-                    'https://www.googleapis.com/auth/drive.readonly',
-                    'https://www.googleapis.com/auth/documents.readonly'
-                ]
-            });
+                auth = new google.auth.GoogleAuth({
+                    keyFile: keyFile,
+                    scopes: [
+                        'https://www.googleapis.com/auth/drive.readonly',
+                        'https://www.googleapis.com/auth/documents.readonly'
+                    ]
+                });
+            }
 
             const authClient = await auth.getClient();
             
