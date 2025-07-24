@@ -36,19 +36,27 @@ class AIChatbotManager {
         }
     }
 
-    // Load các AI providers
+    // Load các AI providers với Google Sheets support
     async loadProviders() {
         try {
-            // 1. Google Gemini (MIỄN PHÍ - Tốt nhất cho tiếng Việt)
+            // 1. Google Gemini (MIỄN PHÍ - Tốt nhất cho tiếng Việt) - Drug focused
             try {
-                const GeminiChatbot = require('./geminiChatbot');
+                const GeminiChatbot = require('./geminiChatbotDrug');
                 this.providers.gemini = GeminiChatbot;
-                console.log('✅ Gemini AI provider loaded');
+                console.log('✅ Gemini Drug AI provider loaded');
             } catch (error) {
-                console.log('⚠️ Gemini AI provider not available:', error.message);
+                console.log('⚠️ Gemini Drug AI provider not available:', error.message);
+                // Fallback to old Gemini
+                try {
+                    const GeminiChatbotOld = require('./geminiChatbot');
+                    this.providers.gemini = GeminiChatbotOld;
+                    console.log('✅ Gemini AI provider (old) loaded as fallback');
+                } catch (fallbackError) {
+                    console.log('⚠️ Gemini AI fallback also failed:', fallbackError.message);
+                }
             }
 
-            // 2. OpenAI GPT (Có free tier)
+            // 2. OpenAI GPT (Có free tier) - Updated for Google Sheets
             try {
                 const OpenAIChatbot = require('./openaiChatbot');
                 this.providers.openai = OpenAIChatbot;
@@ -57,7 +65,7 @@ class AIChatbotManager {
                 console.log('⚠️ OpenAI GPT provider not available:', error.message);
             }
 
-            // 3. Groq AI (MIỄN PHÍ và siêu nhanh)
+            // 3. Groq AI (MIỄN PHÍ và siêu nhanh) - Updated for Google Sheets
             try {
                 const GroqChatbot = require('./groqChatbot');
                 this.providers.groq = GroqChatbot;
@@ -66,11 +74,11 @@ class AIChatbotManager {
                 console.log('⚠️ Groq AI provider not available:', error.message);
             }
 
-            // 4. Fallback to original chatbot
+            // 4. Fallback to original chatbot (local documents) - only as last resort
             try {
                 const OriginalChatbot = require('./chatbot');
                 this.providers.original = OriginalChatbot;
-                console.log('✅ Original chatbot provider loaded');
+                console.log('⚠️ Original chatbot provider loaded (uses local documents - consider updating)');
             } catch (error) {
                 console.log('⚠️ Original chatbot provider not available:', error.message);
             }
