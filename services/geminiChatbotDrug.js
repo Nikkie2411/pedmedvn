@@ -304,7 +304,7 @@ Hãy trả lời một cách chi tiết, chính xác và an toàn. Luôn kết t
             
             console.log(`✅ Gemini AI response generated in ${responseTime}ms`);
             
-            return {
+                return {
                 success: true,
                 data: {
                     message: aiAnswer,
@@ -312,11 +312,13 @@ Hãy trả lời một cách chi tiết, chính xác và an toàn. Luôn kết t
                     model: 'Gemini 1.5 Flash',
                     responseTime: responseTime,
                     relevantDrugs: relevantDrugs.length,
-                    sources: relevantDrugs.map(d => d.title).join(', ')
+                    sources: relevantDrugs.map(d => ({
+                        title: d.name || d.title || 'Unknown drug',
+                        source: d.source || 'Google Sheets',
+                        confidence: 95 // High confidence since it's from our drug database
+                    }))
                 }
-            };
-            
-        } catch (error) {
+            };        } catch (error) {
             console.error('❌ Gemini AI chat error:', error);
             return {
                 success: false,
