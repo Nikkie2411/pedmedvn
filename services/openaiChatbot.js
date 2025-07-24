@@ -1,7 +1,6 @@
-// OpenAI GPT Chatbot Service với local documents
+// OpenAI GPT Chatbot Service với Google Sheets
 const OpenAI = require('openai');
-const fs = require('fs').promises;
-const path = require('path');
+const { searchTrainingData, getProcessedTrainingData } = require('./sheetsTraining');
 
 class OpenAIChatbotService {
     constructor() {
@@ -20,24 +19,24 @@ class OpenAIChatbotService {
         }
     }
 
-    // Initialize với local documents
+    // Initialize với Google Sheets training data
     async initialize() {
         try {
-            console.log('🤖 Initializing OpenAI GPT chatbot service...');
+            console.log('🤖 Initializing OpenAI GPT chatbot service with Google Sheets...');
             
-            // Load documents from local folder
-            await this.loadDocumentsFromFolder();
-            console.log(`📚 Loaded ${this.documents.length} documents from local folder`);
+            // Load training data from Google Sheets
+            await this.loadTrainingDataFromSheets();
+            console.log(`📚 Loaded ${this.documents.length} training entries from Google Sheets`);
             
             if (this.documents.length === 0) {
-                console.warn('⚠️ No documents found in backend/documents folder');
-                throw new Error('No documents available for training. Please add documents to backend/documents folder.');
+                console.warn('⚠️ No training data found in Google Sheets');
+                throw new Error('No training data available. Please add data to the Google Sheets.');
             }
             
             this.extractDrugNames();
             this.isInitialized = true;
             
-            console.log(`✅ OpenAI GPT chatbot initialized with ${this.documents.length} documents`);
+            console.log(`✅ OpenAI GPT chatbot initialized with ${this.documents.length} training entries`);
             
         } catch (error) {
             console.error('❌ Failed to initialize OpenAI GPT chatbot:', error);
@@ -45,51 +44,49 @@ class OpenAIChatbotService {
         }
     }
 
-    // Load knowledge base
-    // Load documents từ thư mục backend/documents
-    async loadDocumentsFromFolder() {
+    // Load training data từ Google Sheets
+    async loadTrainingDataFromSheets() {
         try {
-            const documentsDir = path.join(__dirname, '..', 'documents');
+            const trainingData = await getProcessedTrainingData('TrainingData');
             
-            // Ensure documents directory exists
-            try {
-                await fs.access(documentsDir);
-            } catch (error) {
-                console.warn('⚠️ Documents directory not found, creating it...');
-                await fs.mkdir(documentsDir, { recursive: true });
-                return;
-            }
-            
-            const files = await fs.readdir(documentsDir);
-            const textFiles = files.filter(file => file.endsWith('.txt') || file.endsWith('.md'));
-            
-            console.log(`📁 Found ${textFiles.length} text files in documents folder`);
+            console.log(`� Found ${trainingData.length} training entries in Google Sheets`);
             
             this.documents = [];
             
-            for (const file of textFiles) {
-                const filePath = path.join(documentsDir, file);
-                const content = await fs.readFile(filePath, 'utf8');
+            trainingData.forEach((entry, index) => {
+                // Create a document structure from sheet data
+                const doc = {
+                    id: `sheet_entry_${index + 1}`,
+                    title: entry.Topic || entry.Question || `Entry ${index + 1}`,
+                    content: this.combineSheetContent(entry),
+                    source: 'Google Sheets - PedMed Training Data',
+                    lastUpdated: new Date().toISOString(),
+                    type: 'medical_training_data',
+                    rawData: entry // Keep original sheet data for reference
+                };
                 
-                if (content.trim()) {
-                    const doc = {
-                        id: file.replace(/\.(txt|md)$/i, ''),
-                        title: file.replace(/\.(txt|md)$/i, '').replace(/_/g, ' '),
-                        content: content.trim(),
-                        source: `Local Document - ${file}`,
-                        lastUpdated: new Date().toISOString(),
-                        type: 'medical_document'
-                    };
-                    
-                    this.documents.push(doc);
-                    console.log(`📄 Loaded: ${file} (${content.length} characters)`);
-                }
-            }
+                this.documents.push(doc);
+                console.log(`📄 Processed: ${doc.title} (${doc.content.length} characters)`);
+            });
             
         } catch (error) {
-            console.error('❌ Error loading documents from folder:', error);
+            console.error('❌ Error loading training data from Google Sheets:', error);
             throw error;
         }
+    }
+
+    // Combine multiple fields from sheet into searchable content
+    combineSheetContent(entry) {
+        const contentParts = [];
+        
+        // Add all non-empty fields to content
+        Object.keys(entry).forEach(key => {
+            if (key !== 'searchableText' && entry[key] && entry[key].trim()) {
+                contentParts.push(`${key}: ${entry[key]}`);
+            }
+        });
+        
+        return contentParts.join('\n\n');
     }
 
     // Extract drug names
@@ -155,38 +152,59 @@ Vui lòng hỏi về một trong những thuốc này.`
         return { isValid: true, mentionedDrugs };
     }
 
-    // Search relevant documents
-    searchRelevantDocuments(query, limit = 3) {
-        if (this.documents.length === 0) return [];
-        
-        const queryLower = query.toLowerCase();
-        const scores = [];
-        
-        this.documents.forEach((doc, index) => {
-            let score = 0;
-            const contentLower = doc.content.toLowerCase();
-            const titleLower = (doc.title || '').toLowerCase();
+    // Search relevant documents using Google Sheets
+    async searchRelevantDocuments(query, limit = 3) {
+        try {
+            // Use the sheets training search for more accurate results
+            const searchResults = await searchTrainingData(query, 'TrainingData', limit);
             
-            if (titleLower.includes(queryLower)) score += 50;
-            if (contentLower.includes(queryLower)) score += 30;
+            if (searchResults.length > 0) {
+                console.log(`🔍 Found ${searchResults.length} relevant training entries from Sheets`);
+                return searchResults.map(result => ({
+                    title: result.Topic || result.Question || 'Training Entry',
+                    content: this.combineSheetContent(result),
+                    source: 'Google Sheets Training Data',
+                    relevanceScore: result.relevanceScore,
+                    rawData: result
+                }));
+            }
+
+            // Fallback to local document search if available
+            if (this.documents.length === 0) return [];
             
-            const queryWords = queryLower.split(/\s+/);
-            queryWords.forEach(word => {
-                if (word.length > 2) {
-                    if (titleLower.includes(word)) score += 20;
-                    if (contentLower.includes(word)) score += 10;
+            const queryLower = query.toLowerCase();
+            const scores = [];
+            
+            this.documents.forEach((doc, index) => {
+                let score = 0;
+                const contentLower = doc.content.toLowerCase();
+                const titleLower = (doc.title || '').toLowerCase();
+                
+                if (titleLower.includes(queryLower)) score += 50;
+                if (contentLower.includes(queryLower)) score += 30;
+                
+                const queryWords = queryLower.split(/\s+/);
+                queryWords.forEach(word => {
+                    if (word.length > 2) {
+                        if (titleLower.includes(word)) score += 20;
+                        if (contentLower.includes(word)) score += 10;
+                    }
+                });
+                
+                if (score > 0) {
+                    scores.push({
+                        index, score, title: doc.title,
+                        content: doc.content, source: doc.source
+                    });
                 }
             });
             
-            if (score > 0) {
-                scores.push({
-                    index, score, title: doc.title,
-                    content: doc.content, source: doc.source
-                });
-            }
-        });
-        
-        return scores.sort((a, b) => b.score - a.score).slice(0, limit);
+            return scores.sort((a, b) => b.score - a.score).slice(0, limit);
+            
+        } catch (error) {
+            console.error('❌ Error searching relevant documents:', error);
+            return [];
+        }
     }
 
     // Main chat function với OpenAI GPT
@@ -217,13 +235,13 @@ Vui lòng hỏi về một trong những thuốc này.`
             }
             
             const startTime = Date.now();
-            const relevantDocs = this.searchRelevantDocuments(message);
+            const relevantDocs = await this.searchRelevantDocuments(message);
             
             if (relevantDocs.length === 0) {
                 return {
                     success: true,
                     data: {
-                        message: "Không tìm thấy thông tin liên quan trong tài liệu hiện có.",
+                        message: "Không tìm thấy thông tin liên quan trong dữ liệu huấn luyện Google Sheets.",
                         isAiGenerated: false
                     }
                 };
