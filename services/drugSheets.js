@@ -1,4 +1,4 @@
-const { getSheetsClient } = require('./sheets');
+const { google } = require('googleapis');
 const logger = require('../utils/logger');
 const { SPREADSHEET_ID } = require('../config/config');
 const NodeCache = require('node-cache');
@@ -36,13 +36,16 @@ async function loadDrugData(sheetName = null) {
 
     try {
       logger.info(`💊 Trying to load drug data from sheet: ${trySheetName}`);
-      const sheetsClient = getSheetsClient();
       
-      if (!sheetsClient) {
-        throw new Error('Google Sheets client not initialized');
-      }
+      // Direct Google Sheets API call
+      const auth = new google.auth.GoogleAuth({
+        keyFile: './vietanhprojects-124f98147480.json',
+        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+      });
 
-      const response = await sheetsClient.spreadsheets.values.get({
+      const sheets = google.sheets({ version: 'v4', auth });
+      
+      const response = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
         range: trySheetName,
       });
@@ -99,8 +102,9 @@ async function processDrugData(rows, sheetName) {
     });
 
     // Skip empty drugs (no name or main identifier)
-    const drugName = drug['Tên thuốc'] || drug['Drug Name'] || drug['Name'] || drug['Thuốc'] || '';
+    const drugName = drug['Tên thuốc'] || drug['Drug Name'] || drug['Name'] || drug['Thuốc'] || drug['HOẠT CHẤT'] || '';
     if (!drugName.trim()) {
+      console.log(`⚠️ Skipping row ${i}: No drug name found. Available fields:`, Object.keys(drug).slice(0, 5));
       continue;
     }
 
@@ -125,19 +129,6 @@ async function processDrugData(rows, sheetName) {
   
   logger.info(`✅ Loaded ${drugData.length} drugs from ${sheetName}`);
   return drugData;
-
-  } catch (error) {
-    logger.error(`❌ Error loading drug data from ${sheetName}:`, error);
-    
-    // Try to return cached data if available
-    const staleCache = drugCache.get(cacheKey);
-    if (staleCache) {
-      logger.warn(`🔄 Using stale cached data for ${sheetName}`);
-      return staleCache;
-    }
-    
-    return [];
-  }
 }
 
 /**
@@ -147,7 +138,7 @@ function createSearchableContent(drug, headers) {
   const contentParts = [];
   
   // Add drug name multiple times for better matching
-  const drugName = drug['Tên thuốc'] || drug['Drug Name'] || drug['Name'] || drug['Thuốc'] || '';
+  const drugName = drug['Tên thuốc'] || drug['Drug Name'] || drug['Name'] || drug['Thuốc'] || drug['HOẠT CHẤT'] || '';
   if (drugName) {
     contentParts.push(drugName);
     contentParts.push(drugName.toLowerCase());
@@ -171,14 +162,14 @@ function createStructuredContent(drug, headers) {
   const sections = [];
   
   // Drug name section
-  const drugName = drug['Tên thuốc'] || drug['Drug Name'] || drug['Name'] || drug['Thuốc'] || '';
+  const drugName = drug['Tên thuốc'] || drug['Drug Name'] || drug['Name'] || drug['Thuốc'] || drug['HOẠT CHẤT'] || '';
   if (drugName) {
     sections.push(`=== ${drugName.toUpperCase()} ===\n`);
   }
 
   // Organize content by importance
   const priorityFields = [
-    'Tên thuốc', 'Drug Name', 'Name', 'Thuốc',
+    'Tên thuốc', 'Drug Name', 'Name', 'Thuốc', 'HOẠT CHẤT',
     'Hoạt chất', 'Active Ingredient', 'Thành phần',
     'Công dụng', 'Indication', 'Chỉ định', 'Tác dụng',
     'Liều dùng', 'Dosage', 'Cách dùng', 'Liều lượng',
