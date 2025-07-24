@@ -38,10 +38,22 @@ async function loadDrugData(sheetName = null) {
       logger.info(`💊 Trying to load drug data from sheet: ${trySheetName}`);
       
       // Direct Google Sheets API call
-      const auth = new google.auth.GoogleAuth({
-        keyFile: './vietanhprojects-124f98147480.json',
-        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-      });
+      let auth;
+      if (process.env.GOOGLE_CREDENTIALS) {
+        // Production: use environment variable
+        auth = new google.auth.GoogleAuth({
+          credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
+          scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+        });
+      } else if (require('fs').existsSync('./vietanhprojects-124f98147480.json')) {
+        // Development: use local file
+        auth = new google.auth.GoogleAuth({
+          keyFile: './vietanhprojects-124f98147480.json',
+          scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+        });
+      } else {
+        throw new Error('No Google credentials found. Set GOOGLE_CREDENTIALS environment variable or add service account file.');
+      }
 
       const sheets = google.sheets({ version: 'v4', auth });
       
