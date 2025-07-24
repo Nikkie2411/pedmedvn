@@ -41,7 +41,7 @@ class ChatbotService {
     // Load drug data từ Google Sheets
     async loadDrugDataFromSheets() {
         try {
-            const drugData = await loadDrugData('Sheet1'); // Tên sheet chứa dữ liệu thuốc
+            const drugData = await loadDrugData('pedmedvnch'); // Tên sheet chứa dữ liệu thuốc
             
             console.log(`💊 Found ${drugData.length} drugs in Google Sheets`);
             

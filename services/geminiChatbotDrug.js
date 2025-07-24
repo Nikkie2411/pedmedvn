@@ -47,7 +47,7 @@ class GeminiChatbotService {
     // Load drug data từ Google Sheets
     async loadDrugDataFromSheets() {
         try {
-            const drugData = await loadDrugData('Sheet1'); // Tên sheet chứa dữ liệu thuốc
+            const drugData = await loadDrugData('pedmedvnch'); // Tên sheet chứa dữ liệu thuốc
             
             console.log(`💊 Found ${drugData.length} drugs in Google Sheets`);
             
@@ -162,7 +162,7 @@ Vui lòng hỏi về một trong những thuốc này hoặc sử dụng các t�
     async searchRelevantDrugs(query, limit = 3) {
         try {
             // Use the drug search for more accurate results
-            const searchResults = await searchDrugData(query, 'Sheet1', limit);
+            const searchResults = await searchDrugData(query, 'pedmedvnch', limit);
             
             if (searchResults.length > 0) {
                 console.log(`🔍 Found ${searchResults.length} relevant drugs from Sheets`);

@@ -47,7 +47,7 @@ class GeminiChatbotService {
     // Load training data từ Google Sheets
     async loadTrainingDataFromSheets() {
         try {
-            const trainingData = await getProcessedTrainingData('TrainingData');
+            const trainingData = await getProcessedTrainingData('pedmedvnch');
             
             console.log(`� Found ${trainingData.length} training entries in Google Sheets`);
             
@@ -164,7 +164,7 @@ Vui lòng hỏi về một trong những thuốc này hoặc liên hệ quản t
     async searchRelevantDocuments(query, limit = 3) {
         try {
             // Use the sheets training search for more accurate results
-            const searchResults = await searchTrainingData(query, 'TrainingData', limit);
+            const searchResults = await searchTrainingData(query, 'pedmedvnch', limit);
             
             if (searchResults.length > 0) {
                 console.log(`🔍 Found ${searchResults.length} relevant training entries from Sheets`);

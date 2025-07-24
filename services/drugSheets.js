@@ -7,88 +7,124 @@ const NodeCache = require('node-cache');
 const drugCache = new NodeCache({ stdTTL: 60 * 60 }); // 1 hour cache
 
 /**
- * Load drug data from Google Sheets
+ * Load drug data from Google Sheets with automatic sheet detection
  * Structure: Each row = one drug, columns = drug properties
  * Supports HTML content in cells
  */
-async function loadDrugData(sheetName = 'Sheet1') {
-  const cacheKey = `drugs_${sheetName}`;
-  
-  // Check cache first
-  const cached = drugCache.get(cacheKey);
-  if (cached) {
-    logger.info(`📦 Using cached drug data for ${sheetName}: ${cached.length} drugs`);
-    return cached;
-  }
+async function loadDrugData(sheetName = null) {
+  // Try multiple common sheet names if none specified
+  const sheetNames = sheetName ? [sheetName] : [
+    'pedmedvnch',     // Tên sheet thực tế
+    'PedMed2025',     // Tên từ logs trước đó
+    'Sheet1',         // Default
+    'Thuốc',          // Vietnamese
+    'Drugs',          // English
+    'Data',           // Common
+    'Medicine',       // Medical
+    'Database'        // Generic
+  ];
 
-  try {
-    logger.info(`💊 Loading drug data from sheet: ${sheetName}`);
-    const sheetsClient = getSheetsClient();
+  for (const trySheetName of sheetNames) {
+    const cacheKey = `drugs_${trySheetName}`;
     
-    if (!sheetsClient) {
-      throw new Error('Google Sheets client not initialized');
+    // Check cache first
+    const cached = drugCache.get(cacheKey);
+    if (cached) {
+      logger.info(`📦 Using cached drug data for ${trySheetName}: ${cached.length} drugs`);
+      return cached;
     }
 
-    const response = await sheetsClient.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: sheetName,
-    });
-
-    if (!response?.data?.values) {
-      logger.warn(`⚠️ No data found in sheet: ${sheetName}`);
-      return [];
-    }
-
-    const rows = response.data.values;
-    if (rows.length === 0) {
-      logger.warn(`⚠️ Empty sheet: ${sheetName}`);
-      return [];
-    }
-
-    // First row contains headers (column names)
-    const headers = rows[0].map(header => header.trim());
-    logger.info(`📋 Drug data columns: ${headers.join(', ')}`);
-
-    // Process each drug (each row after header)
-    const drugData = [];
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row || row.length === 0) continue;
-
-      // Create drug object from row data
-      const drug = {};
-      headers.forEach((header, index) => {
-        const cellValue = row[index] || '';
-        drug[header] = stripHtml(cellValue); // Clean HTML content
-      });
-
-      // Skip empty drugs (no name or main identifier)
-      const drugName = drug['Tên thuốc'] || drug['Drug Name'] || drug['Name'] || drug['Thuốc'] || '';
-      if (!drugName.trim()) {
-        continue;
+    try {
+      logger.info(`💊 Trying to load drug data from sheet: ${trySheetName}`);
+      const sheetsClient = getSheetsClient();
+      
+      if (!sheetsClient) {
+        throw new Error('Google Sheets client not initialized');
       }
 
-      // Create comprehensive drug entry for AI training
-      const drugEntry = {
-        id: `drug_${i}`,
-        name: drugName.trim(),
-        originalData: drug,
-        searchableContent: createSearchableContent(drug, headers),
-        structuredContent: createStructuredContent(drug, headers),
-        source: `Google Sheets - ${sheetName}`,
-        lastUpdated: new Date().toISOString(),
-        type: 'drug_information'
-      };
+      const response = await sheetsClient.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: trySheetName,
+      });
 
-      drugData.push(drugEntry);
-      logger.info(`💊 Processed: ${drugName} (${drugEntry.searchableContent.length} chars)`);
+      if (!response?.data?.values) {
+        logger.warn(`⚠️ No data found in sheet: ${trySheetName}`);
+        continue; // Try next sheet name
+      }
+
+      const rows = response.data.values;
+      if (rows.length === 0) {
+        logger.warn(`⚠️ Empty sheet: ${trySheetName}`);
+        continue; // Try next sheet name
+      }
+
+      // Success! Process the data
+      logger.info(`✅ Found data in sheet: ${trySheetName}`);
+      return await processDrugData(rows, trySheetName);
+
+    } catch (error) {
+      logger.warn(`⚠️ Failed to load from sheet ${trySheetName}: ${error.message}`);
+      // Continue to try next sheet name
+    }
+  }
+
+  // If we get here, no sheet worked
+  logger.error('❌ Could not load data from any sheet. Available sheets might be:');
+  logger.error('   - Check sheet names in your Google Sheets');
+  logger.error('   - Common names: pedmedvnch, PedMed2025, Sheet1, Thuốc, Drugs, Data');
+  return [];
+}
+
+/**
+ * Process drug data from sheet rows
+ */
+async function processDrugData(rows, sheetName) {
+  const cacheKey = `drugs_${sheetName}`;
+
+  // First row contains headers (column names)
+  const headers = rows[0].map(header => header.trim());
+  logger.info(`📋 Drug data columns: ${headers.join(', ')}`);
+
+  // Process each drug (each row after header)
+  const drugData = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length === 0) continue;
+
+    // Create drug object from row data
+    const drug = {};
+    headers.forEach((header, index) => {
+      const cellValue = row[index] || '';
+      drug[header] = stripHtml(cellValue); // Clean HTML content
+    });
+
+    // Skip empty drugs (no name or main identifier)
+    const drugName = drug['Tên thuốc'] || drug['Drug Name'] || drug['Name'] || drug['Thuốc'] || '';
+    if (!drugName.trim()) {
+      continue;
     }
 
-    // Cache the processed data
-    drugCache.set(cacheKey, drugData);
-    
-    logger.info(`✅ Loaded ${drugData.length} drugs from ${sheetName}`);
-    return drugData;
+    // Create comprehensive drug entry for AI training
+    const drugEntry = {
+      id: `drug_${i}`,
+      name: drugName.trim(),
+      originalData: drug,
+      searchableContent: createSearchableContent(drug, headers),
+      structuredContent: createStructuredContent(drug, headers),
+      source: `Google Sheets - ${sheetName}`,
+      lastUpdated: new Date().toISOString(),
+      type: 'drug_information'
+    };
+
+    drugData.push(drugEntry);
+    logger.info(`💊 Processed: ${drugName} (${drugEntry.searchableContent.length} chars)`);
+  }
+
+  // Cache the processed data
+  drugCache.set(cacheKey, drugData);
+  
+  logger.info(`✅ Loaded ${drugData.length} drugs from ${sheetName}`);
+  return drugData;
 
   } catch (error) {
     logger.error(`❌ Error loading drug data from ${sheetName}:`, error);
@@ -202,7 +238,7 @@ function stripHtml(html) {
 /**
  * Search drugs based on query with advanced matching
  */
-async function searchDrugData(query, sheetName = 'Sheet1', limit = 10) {
+async function searchDrugData(query, sheetName = 'pedmedvnch', limit = 10) {
   const drugData = await loadDrugData(sheetName);
   
   if (!query || drugData.length === 0) {
@@ -262,7 +298,7 @@ async function searchDrugData(query, sheetName = 'Sheet1', limit = 10) {
 /**
  * Get drug information by name
  */
-async function getDrugByName(drugName, sheetName = 'Sheet1') {
+async function getDrugByName(drugName, sheetName = 'pedmedvnch') {
   const results = await searchDrugData(drugName, sheetName, 1);
   return results.length > 0 ? results[0] : null;
 }

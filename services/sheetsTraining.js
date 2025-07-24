@@ -11,7 +11,7 @@ const trainingCache = new NodeCache({ stdTTL: 60 * 60 }); // 1 hour cache
  * Assumes the sheet has columns like: Topic, Question, Answer, etc.
  * Content can contain HTML formatting
  */
-async function loadTrainingData(sheetName = 'TrainingData') {
+async function loadTrainingData(sheetName = 'pedmedvnch') {
   const cacheKey = `training_${sheetName}`;
   
   // Check cache first
@@ -113,7 +113,7 @@ function stripHtml(html) {
  * Process training data for chatbot consumption
  * Converts HTML content to plain text and formats for RAG
  */
-async function getProcessedTrainingData(sheetName = 'TrainingData') {
+async function getProcessedTrainingData(sheetName = 'pedmedvnch') {
   const rawData = await loadTrainingData(sheetName);
   
   if (rawData.length === 0) {
@@ -139,7 +139,7 @@ async function getProcessedTrainingData(sheetName = 'TrainingData') {
 /**
  * Search training data based on query
  */
-async function searchTrainingData(query, sheetName = 'TrainingData', limit = 10) {
+async function searchTrainingData(query, sheetName = 'pedmedvnch', limit = 10) {
   const trainingData = await getProcessedTrainingData(sheetName);
   
   if (!query || trainingData.length === 0) {
