@@ -1,6 +1,6 @@
-// Google Gemini AI Chatbot Service với knowledge base từ Google Sheets
+// Google Gemini AI Chatbot Service với drug data từ Google Sheets
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { searchTrainingData, getProcessedTrainingData } = require('./sheetsTraining');
+const { searchDrugData, loadDrugData } = require('./drugSheets');
 
 class GeminiChatbotService {
     constructor() {
@@ -18,24 +18,24 @@ class GeminiChatbotService {
         }
     }
 
-    // Initialize với Google Sheets training data
+    // Initialize với Google Sheets drug data
     async initialize() {
         try {
-            console.log('🤖 Initializing Gemini AI chatbot service with Google Sheets...');
+            console.log('🤖 Initializing Gemini AI chatbot service with drug data from Google Sheets...');
             
-            // Load knowledge base from Google Sheets
-            await this.loadTrainingDataFromSheets();
-            console.log(`📚 Loaded ${this.documents.length} training entries from Google Sheets`);
+            // Load drug database from Google Sheets
+            await this.loadDrugDataFromSheets();
+            console.log(`� Loaded ${this.documents.length} drugs from Google Sheets`);
             
             if (this.documents.length === 0) {
-                console.warn('⚠️ No training data found in Google Sheets');
-                throw new Error('No training data available. Please add data to the Google Sheets.');
+                console.warn('⚠️ No drug data found in Google Sheets');
+                throw new Error('No drug data available. Please add drug information to the Google Sheets.');
             }
             
             this.extractDrugNames();
             this.isInitialized = true;
             
-            console.log(`✅ Gemini AI chatbot initialized with ${this.documents.length} training entries`);
+            console.log(`✅ Gemini AI chatbot initialized with ${this.documents.length} drugs`);
             console.log(`💊 Known drugs: ${Array.from(this.knownDrugs).slice(0, 5).join(', ')}...`);
             
         } catch (error) {
