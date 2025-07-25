@@ -2,14 +2,15 @@
 
 class AIChatbotManager {
     constructor() {
-        this.providers = {};
+        this.providerClasses = {}; // Store classes
+        this.providers = {}; // Store instances
         this.currentProvider = process.env.AI_PROVIDER || 'gemini';
         this.isInitialized = false;
     }
 
     // Helper function to create and initialize provider instance
     async createProviderInstance(providerName) {
-        const ProviderClass = this.providers[providerName];
+        const ProviderClass = this.providerClasses[providerName];
         if (!ProviderClass) {
             throw new Error(`Provider ${providerName} not found`);
         }
@@ -17,7 +18,7 @@ class AIChatbotManager {
         const instance = new ProviderClass();
         await instance.initialize();
         
-        // Replace class with instance
+        // Store instance separately from class
         this.providers[providerName] = instance;
         
         return instance;
@@ -137,14 +138,14 @@ class AIChatbotManager {
             // 1. Google Gemini (MIỄN PHÍ - Tốt nhất cho tiếng Việt) - Drug focused
             try {
                 const GeminiChatbot = require('./geminiChatbotDrug');
-                this.providers.gemini = GeminiChatbot;
+                this.providerClasses.gemini = GeminiChatbot;
                 console.log('✅ Gemini Drug AI provider loaded');
             } catch (error) {
                 console.log('⚠️ Gemini Drug AI provider not available:', error.message);
                 // Fallback to old Gemini
                 try {
                     const GeminiChatbotOld = require('./geminiChatbot');
-                    this.providers.gemini = GeminiChatbotOld;
+                    this.providerClasses.gemini = GeminiChatbotOld;
                     console.log('✅ Gemini AI provider (old) loaded as fallback');
                 } catch (fallbackError) {
                     console.log('⚠️ Gemini AI fallback also failed:', fallbackError.message);
@@ -154,7 +155,7 @@ class AIChatbotManager {
             // 2. OpenAI GPT (Có free tier) - Updated for Google Sheets
             try {
                 const OpenAIChatbot = require('./openaiChatbot');
-                this.providers.openai = OpenAIChatbot;
+                this.providerClasses.openai = OpenAIChatbot;
                 console.log('✅ OpenAI GPT provider loaded');
             } catch (error) {
                 console.log('⚠️ OpenAI GPT provider not available:', error.message);
@@ -163,14 +164,14 @@ class AIChatbotManager {
             // 3. Groq AI (MIỄN PHÍ và siêu nhanh) - Drug focused with Google Sheets
             try {
                 const GroqChatbotDrug = require('./groqChatbotDrug');
-                this.providers.groq = GroqChatbotDrug;
+                this.providerClasses.groq = GroqChatbotDrug;
                 console.log('✅ Groq Drug AI provider loaded (14,400 requests/day FREE)');
             } catch (error) {
                 console.log('⚠️ Groq Drug AI provider not available:', error.message);
                 // Fallback to old Groq if exists
                 try {
                     const GroqChatbot = require('./groqChatbot');
-                    this.providers.groq = GroqChatbot;
+                    this.providerClasses.groq = GroqChatbot;
                     console.log('✅ Groq AI provider (old) loaded as fallback');
                 } catch (fallbackError) {
                     console.log('⚠️ Groq AI fallback also failed:', fallbackError.message);
@@ -180,7 +181,7 @@ class AIChatbotManager {
             // 4. Fallback to original chatbot (local documents) - only as last resort
             try {
                 const OriginalChatbot = require('./chatbot');
-                this.providers.original = OriginalChatbot;
+                this.providerClasses.original = OriginalChatbot;
                 console.log('⚠️ Original chatbot provider loaded (uses local documents - consider updating)');
             } catch (error) {
                 console.log('⚠️ Original chatbot provider not available:', error.message);
@@ -194,8 +195,8 @@ class AIChatbotManager {
     // Initialize fallback nếu không có AI provider nào
     async initializeFallback() {
         try {
-            if (this.providers.original) {
-                await this.providers.original.initialize();
+            if (this.providerClasses.original) {
+                await this.createProviderInstance('original');
                 this.currentProvider = 'original';
                 console.log('📝 Fallback to original chatbot');
             } else {
@@ -212,9 +213,9 @@ class AIChatbotManager {
         try {
             console.log(`🔍 Checking if provider ${providerName} is available...`);
             
-            if (!this.providers[providerName]) {
+            if (!this.providerClasses[providerName]) {
                 console.error(`❌ Provider ${providerName} not loaded in providers list`);
-                console.log('📋 Available providers:', Object.keys(this.providers));
+                console.log('📋 Available providers:', Object.keys(this.providerClasses));
                 throw new Error(`Provider ${providerName} not available`);
             }
 
@@ -256,15 +257,15 @@ class AIChatbotManager {
 
     // Get status of a specific provider
     getProviderStatus(providerName) {
-        const provider = this.providers[providerName];
-        if (!provider) {
+        const providerClass = this.providerClasses[providerName];
+        if (!providerClass) {
             return 'not_available';
         }
         
         switch(providerName) {
             case 'gemini':
                 // Check if Gemini has any API key (env or fallback)
-                if (provider.geminiApiKey) {
+                if (process.env.GEMINI_API_KEY) {
                     console.log('✅ Gemini provider has API key');
                     return 'ready';
                 } else {
@@ -404,8 +405,8 @@ class AIChatbotManager {
     getAvailableProviders() {
         const providers = [];
         
-        Object.keys(this.providers).forEach(key => {
-            const provider = this.providers[key];
+        Object.keys(this.providerClasses).forEach(key => {
+            const providerClass = this.providerClasses[key];
             let description = '';
             let displayName = '';
             
