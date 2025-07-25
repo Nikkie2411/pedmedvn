@@ -72,9 +72,24 @@ class EnhancedMedicalQueryProcessor {
         this.drugAliases = {
             'tigecycline': ['tigecycline', 'tygacil'],
             'amoxicillin': ['amoxicillin', 'amoxycillin', 'augmentin'],
+            'ampicillin': ['ampicillin', 'penbritin', 'principen'],
             'paracetamol': ['paracetamol', 'acetaminophen', 'tylenol', 'efferalgan'],
             'ibuprofen': ['ibuprofen', 'brufen', 'advil'],
-            'cephalexin': ['cephalexin', 'keflex', 'cefalexin']
+            'cephalexin': ['cephalexin', 'keflex', 'cefalexin'],
+            'cefazolin': ['cefazolin', 'ancef', 'kefzol'],
+            'gentamicin': ['gentamicin', 'garamycin'],
+            'vancomycin': ['vancomycin', 'vancocin'],
+            'metronidazole': ['metronidazole', 'flagyl'],
+            'ceftriaxone': ['ceftriaxone', 'rocephin'],
+            'azithromycin': ['azithromycin', 'zithromax'],
+            'clarithromycin': ['clarithromycin', 'biaxin'],
+            'erythromycin': ['erythromycin', 'erythrocin'],
+            'ciprofloxacin': ['ciprofloxacin', 'cipro'],
+            'doxycycline': ['doxycycline', 'vibramycin'],
+            'clindamycin': ['clindamycin', 'cleocin'],
+            'trimethoprim': ['trimethoprim', 'bactrim', 'co-trimoxazole'],
+            'fluconazole': ['fluconazole', 'diflucan'],
+            'nystatin': ['nystatin', 'mycostatin']
         };
     }
 
@@ -84,6 +99,8 @@ class EnhancedMedicalQueryProcessor {
         
         // Extract drug names
         const detectedDrugs = [];
+        
+        // First, check known aliases
         Object.keys(this.drugAliases).forEach(mainName => {
             this.drugAliases[mainName].forEach(alias => {
                 if (normalizedQuery.includes(alias.toLowerCase())) {
@@ -91,6 +108,22 @@ class EnhancedMedicalQueryProcessor {
                 }
             });
         });
+        
+        // If no drugs found via aliases, try to find potential drug names
+        // Look for words that might be drug names (typically longer than 4 chars and not common words)
+        if (detectedDrugs.length === 0) {
+            const words = normalizedQuery.split(/\s+/);
+            const commonWords = ['liều', 'dùng', 'cho', 'trẻ', 'em', 'sơ', 'sinh', 'chống', 'chỉ', 'định', 
+                                'tác', 'dụng', 'phụ', 'cách', 'tương', 'tác', 'quá', 'theo', 'dõi', 'bảo', 'hiểm',
+                                'dose', 'for', 'children', 'newborn', 'contraindication', 'side', 'effect', 'how', 'to'];
+            
+            words.forEach(word => {
+                if (word.length > 4 && !commonWords.includes(word)) {
+                    // This might be a drug name
+                    detectedDrugs.push(word);
+                }
+            });
+        }
         
         // Extract content categories
         const detectedCategories = [];
@@ -131,6 +164,16 @@ class EnhancedMedicalQueryProcessor {
                     return;
                 }
                 
+                // Reverse match (drug name contains active ingredient)
+                if (drugName.toLowerCase().includes(drugActiveIngredient.toLowerCase()) && drugActiveIngredient.length > 3) {
+                    matchedDrugs.push({
+                        drug: drug,
+                        matchedName: drugActiveIngredient,
+                        confidence: 95
+                    });
+                    return;
+                }
+                
                 // Alias match
                 if (this.drugAliases[drugName]) {
                     this.drugAliases[drugName].forEach(alias => {
@@ -143,10 +186,73 @@ class EnhancedMedicalQueryProcessor {
                         }
                     });
                 }
+                
+                // Fuzzy match for similar names (basic similarity)
+                if (this.calculateSimilarity(drugName.toLowerCase(), drugActiveIngredient.toLowerCase()) > 0.7) {
+                    matchedDrugs.push({
+                        drug: drug,
+                        matchedName: drugActiveIngredient,
+                        confidence: 80
+                    });
+                }
             });
         });
         
-        return matchedDrugs;
+        // Remove duplicates and sort by confidence
+        const uniqueMatches = [];
+        const seen = new Set();
+        
+        matchedDrugs
+            .sort((a, b) => b.confidence - a.confidence)
+            .forEach(match => {
+                const key = match.drug['HOẠT CHẤT'];
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    uniqueMatches.push(match);
+                }
+            });
+        
+        return uniqueMatches;
+    }
+
+    // Helper function to calculate string similarity
+    calculateSimilarity(str1, str2) {
+        const longer = str1.length > str2.length ? str1 : str2;
+        const shorter = str1.length > str2.length ? str2 : str1;
+        
+        if (longer.length === 0) return 1.0;
+        
+        const editDistance = this.levenshteinDistance(longer, shorter);
+        return (longer.length - editDistance) / longer.length;
+    }
+
+    // Calculate Levenshtein distance
+    levenshteinDistance(str1, str2) {
+        const matrix = [];
+        
+        for (let i = 0; i <= str2.length; i++) {
+            matrix[i] = [i];
+        }
+        
+        for (let j = 0; j <= str1.length; j++) {
+            matrix[0][j] = j;
+        }
+        
+        for (let i = 1; i <= str2.length; i++) {
+            for (let j = 1; j <= str1.length; j++) {
+                if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j - 1] + 1,
+                        matrix[i][j - 1] + 1,
+                        matrix[i - 1][j] + 1
+                    );
+                }
+            }
+        }
+        
+        return matrix[str2.length][str1.length];
     }
 
     // Step 3: Match content requirements with headers

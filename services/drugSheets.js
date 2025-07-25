@@ -51,6 +51,24 @@ function getFallbackDrugData() {
       'Trong danh mục BHYT, thanh toán đầy đủ cho hầu hết chỉ định'
     ],
     
+    // Ampicillin - Requested by user
+    [
+      'Ampicillin',
+      '2023-12-10',
+      'Kháng sinh Beta-lactam, nhóm Penicillin',
+      'Trẻ sơ sinh <7 ngày: 50mg/kg/ngày chia 2 lần IV/IM. Trẻ sơ sinh ≥7 ngày: 75mg/kg/ngày chia 3 lần',
+      'Nhiễm trùng nhẹ-vừa: 100-200mg/kg/ngày chia 4-6 lần IV/IM/PO. Nhiễm trùng nặng: 200-400mg/kg/ngày. Max: 2g/dose',
+      'CrCl >50ml/min: liều bình thường. CrCl 10-50: q8-12h. CrCl <10: q12-16h',
+      'Không cần điều chỉnh liều',
+      'Dị ứng penicillin, Mononucleosis (EBV) - nguy cơ phát ban rất cao',
+      'Phổ biến: Tiêu chảy, nôn, đau bụng, phát ban (đặc biệt với EBV). Hiếm: phản ứng dị ứng nghiêm trọng',
+      'IV: Pha trong NS hoặc D5W, truyền trong 30 phút. PO: Uống khi đói (1h trước hoặc 2h sau ăn)',
+      'Warfarin (tăng INR), Methotrexate (tăng độc tính), OCP (giảm hiệu quả), Allopurinol (tăng nguy cơ phát ban)',
+      'Độc tính thấp. Quá liều có thể gây co giật (liều rất cao). Xử trí: ngưng thuốc, hỗ trợ triệu chứng',
+      'Theo dõi dấu hiệu dị ứng, hiệu quả điều trị, GI symptoms. Monitor phát ban nếu có mononucleosis',
+      'Trong danh mục BHYT, thanh toán đầy đủ'
+    ],
+    
     // Paracetamol
     [
       'Paracetamol (Acetaminophen)',
