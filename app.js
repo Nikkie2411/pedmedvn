@@ -15,11 +15,13 @@ const monitoringRoutes = require('./routes/monitoring');
 // Try to load full chatbot, fallback to simple version
 let chatbotRoutes;
 try {
+  console.log('🤖 Attempting to load full chatbot...');
   chatbotRoutes = require('./routes/chatbot');
   console.log('✅ Loaded full chatbot routes');
 } catch (error) {
   console.warn('⚠️ Full chatbot failed, using simple version:', error.message);
   chatbotRoutes = require('./routes/chatbot-simple');
+  console.log('✅ Loaded simple chatbot routes (fallback)');
 }
 const logger = require('./utils/logger');
 const cors = require('cors');
@@ -80,15 +82,16 @@ async function startServer() {
   app.locals.sheetsClient = require('./services/sheets').getSheetsClient();
   await loadUsernames();
 
-  // Initialize chatbot service
+  // Initialize chatbot service với error handling
   try {
     console.log('🤖 Initializing chatbot service...');
     const chatbotService = require('./services/chatbot');
     await chatbotService.initialize();
     console.log('✅ Chatbot service initialized successfully');
   } catch (error) {
-    console.error('⚠️ Chatbot initialization failed:', error.message);
-    // Don't fail the entire server - just log the error
+    console.error('⚠️ Chatbot initialization failed, using fallback:', error.message);
+    console.log('📋 Will use simple chatbot with limited drug database');
+    // Don't fail the entire server - just log the error and continue with simple chatbot
   }
 
   app.use(express.json({ limit: '10kb' }));
