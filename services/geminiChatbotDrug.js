@@ -1,6 +1,7 @@
 // Google Gemini AI Chatbot Service với drug data từ Google Sheets
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { searchDrugData, loadDrugData } = require('./drugSheets');
+const EnhancedMedicalQueryProcessor = require('../utils/enhancedMedicalQueryProcessor');
 
 class GeminiChatbotService {
     constructor() {
@@ -9,6 +10,9 @@ class GeminiChatbotService {
         this.knownDrugs = new Set();
         this.dailyRequestCount = 0; // Track daily requests
         this.quotaExceeded = false; // Track quota status
+        
+        // Initialize Enhanced Medical Query Processor
+        this.queryProcessor = new EnhancedMedicalQueryProcessor();
         
         // Initialize Gemini AI
         this.geminiApiKey = process.env.GEMINI_API_KEY; // Miễn phí tại ai.google.dev
@@ -229,7 +233,7 @@ Vui lòng hỏi về một trong những thuốc này hoặc sử dụng các t�
         }
     }
 
-    // Main chat function với Gemini AI
+    // Main chat function với Enhanced 5-Step Query Processing
     async chat(message, userId = 'anonymous') {
         try {
             if (!this.isInitialized) {
@@ -259,15 +263,50 @@ Vui lòng hỏi về một trong những thuốc này hoặc sử dụng các t�
             
             const startTime = Date.now();
             
-            // Search relevant drugs from Google Sheets
+            // ENHANCED 5-STEP PROCESSING
+            console.log('🔍 Using Enhanced 5-Step Medical Query Processing...');
+            const processingResult = await this.queryProcessor.processQuery(message, this.documents);
+            
+            if (processingResult.success) {
+                // Direct answer from 5-step processing
+                console.log(`✅ Direct answer found with ${processingResult.confidence}% confidence`);
+                
+                const responseTime = Date.now() - startTime;
+                
+                return {
+                    success: true,
+                    data: {
+                        message: `${processingResult.message}\n\n⚠️ **QUAN TRỌNG:** Thông tin này chỉ mang tính chất tham khảo. Luôn tham khảo ý kiến bác sĩ hoặc dược sĩ trước khi sử dụng thuốc, đặc biệt với trẻ em.`,
+                        isAiGenerated: false,
+                        model: "Enhanced 5-Step Processing",
+                        sources: [{
+                            title: processingResult.drugName,
+                            source: `Google Sheets - ${processingResult.category}`,
+                            confidence: processingResult.confidence,
+                            lastUpdated: processingResult.lastUpdated
+                        }],
+                        aiProvider: "GEMINI",
+                        modelUsed: "gemini-1.5-flash-enhanced",
+                        responseTime: responseTime,
+                        processingSteps: 5,
+                        directMatch: true
+                    }
+                };
+            }
+            
+            // Fallback to AI if direct processing fails
+            console.log(`⚠️ 5-step processing failed at step ${processingResult.step}, falling back to AI processing...`);
+            
+            // Search relevant drugs from Google Sheets for AI context
             const relevantDrugs = await this.searchRelevantDrugs(message);
             
             if (relevantDrugs.length === 0) {
                 return {
                     success: true,
                     data: {
-                        message: "Không tìm thấy thông tin liên quan về thuốc trong cơ sở dữ liệu. Vui lòng kiểm tra lại tên thuốc hoặc từ khóa.",
-                        isAiGenerated: false
+                        message: `${processingResult.message}\n\nKhông tìm thấy thông tin liên quan về thuốc trong cơ sở dữ liệu. Vui lòng kiểm tra lại tên thuốc hoặc từ khóa.`,
+                        isAiGenerated: false,
+                        processingError: processingResult.message
                     }
                 };
             }

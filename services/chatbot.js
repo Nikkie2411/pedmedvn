@@ -1,11 +1,15 @@
 // Chatbot service với knowledge base từ Google Sheets
 const { searchDrugData, loadDrugData } = require('./drugSheets');
+const EnhancedMedicalQueryProcessor = require('../utils/enhancedMedicalQueryProcessor');
 
 class ChatbotService {
     constructor() {
         this.documents = [];
         this.embeddings = new Map();
         this.isInitialized = false;
+        
+        // Initialize Enhanced Medical Query Processor
+        this.queryProcessor = new EnhancedMedicalQueryProcessor();
     }
 
     // Initialize chatbot với Google Sheets drug data

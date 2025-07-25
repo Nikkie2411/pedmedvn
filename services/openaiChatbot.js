@@ -1,12 +1,16 @@
 // OpenAI GPT Chatbot Service - Sử dụng drugSheets như các service khác
 const OpenAI = require('openai');
 const { searchDrugData, loadDrugData } = require('./drugSheets');
+const EnhancedMedicalQueryProcessor = require('../utils/enhancedMedicalQueryProcessor');
 
 class OpenAIChatbotService {
     constructor() {
         this.documents = [];
         this.isInitialized = false;
         this.knownDrugs = new Set();
+        
+        // Initialize Enhanced Medical Query Processor
+        this.queryProcessor = new EnhancedMedicalQueryProcessor();
         
         // Initialize OpenAI
         this.openaiApiKey = process.env.OPENAI_API_KEY;
