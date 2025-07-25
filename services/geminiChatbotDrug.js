@@ -7,6 +7,8 @@ class GeminiChatbotService {
         this.documents = [];
         this.isInitialized = false;
         this.knownDrugs = new Set();
+        this.dailyRequestCount = 0; // Track daily requests
+        this.quotaExceeded = false; // Track quota status
         
         // Initialize Gemini AI
         this.geminiApiKey = process.env.GEMINI_API_KEY; // Miễn phí tại ai.google.dev
@@ -324,11 +326,134 @@ Hãy trả lời một cách chi tiết, chính xác và an toàn. Luôn kết t
                 }
             };        } catch (error) {
             console.error('❌ Gemini AI chat error:', error);
+            
+            // Check if it's a quota exceeded error
+            if (error.message.includes('429') || error.message.includes('quota') || error.message.includes('Too Many Requests')) {
+                console.warn('⚠️ Gemini AI quota exceeded. Switching to fallback mode.');
+                this.quotaExceeded = true;
+                
+                // Fallback to simple database response when quota exceeded
+                const fallbackResponse = this.generateFallbackResponse(relevantDrugs, message);
+                return {
+                    success: true,
+                    data: {
+                        message: fallbackResponse,
+                        isAiGenerated: false,
+                        model: 'Fallback (Quota exceeded)',
+                        note: 'AI đã vượt quá giới hạn miễn phí hôm nay (50 câu hỏi/ngày). Đây là phản hồi từ cơ sở dữ liệu thuốc.',
+                        relevantDrugs: relevantDrugs.length,
+                        sources: relevantDrugs.map(d => ({
+                            title: d.name || d.title || 'Unknown drug',
+                            source: d.source || 'Google Sheets',
+                            confidence: 90
+                        }))
+                    }
+                };
+            }
+            
             return {
                 success: false,
                 message: `Lỗi Gemini AI: ${error.message}`
             };
         }
+    }
+
+    // Generate fallback response when AI quota exceeded
+    generateFallbackResponse(relevantDrugs, query) {
+        if (!relevantDrugs || relevantDrugs.length === 0) {
+            return "Xin lỗi, không tìm thấy thông tin về thuốc bạn hỏi trong cơ sở dữ liệu. Vui lòng thử lại với tên thuốc khác.";
+        }
+
+        const topDrug = relevantDrugs[0];
+        const drugName = topDrug.title || topDrug.name;
+        
+        // Extract relevant information based on query
+        const content = topDrug.content || '';
+        const queryLower = query.toLowerCase();
+        
+        let response = `**Thông tin về ${drugName}:**\n\n`;
+        
+        // Add relevant sections based on query intent
+        if (queryLower.includes('liều') || queryLower.includes('dose')) {
+            const doseInfo = this.extractSection(content, ['liều', 'dose', '2.1.', '2.2.', '2.3.', '2.4.']);
+            if (doseInfo) response += `📊 **Liều dùng:**\n${doseInfo}\n\n`;
+        }
+        
+        if (queryLower.includes('tác dụng phụ') || queryLower.includes('side effect') || queryLower.includes('phản ứng')) {
+            const sideEffects = this.extractSection(content, ['tác dụng phụ', 'side effect', '4.']);
+            if (sideEffects) response += `⚠️ **Tác dụng phụ:**\n${sideEffects}\n\n`;
+        }
+        
+        if (queryLower.includes('chống chỉ định') || queryLower.includes('contraindication')) {
+            const contraindications = this.extractSection(content, ['chống chỉ định', 'contraindication', '3.']);
+            if (contraindications) response += `🚫 **Chống chỉ định:**\n${contraindications}\n\n`;
+        }
+        
+        if (queryLower.includes('tương tác') || queryLower.includes('interaction')) {
+            const interactions = this.extractSection(content, ['tương tác', 'interaction', '6.']);
+            if (interactions) response += `🔄 **Tương tác thuốc:**\n${interactions}\n\n`;
+        }
+        
+        if (queryLower.includes('cách dùng') || queryLower.includes('how to use')) {
+            const usage = this.extractSection(content, ['cách dùng', '5.']);
+            if (usage) response += `💊 **Cách dùng:**\n${usage}\n\n`;
+        }
+        
+        // If no specific section found, show general info
+        if (response === `**Thông tin về ${drugName}:**\n\n`) {
+            response += content.substring(0, 500) + (content.length > 500 ? '...' : '') + '\n\n';
+        }
+        
+        response += `\n⚠️ **Lưu ý quan trọng:** Đây là thông tin tham khảo từ cơ sở dữ liệu. Vui lòng tham khảo bác sĩ hoặc dược sĩ trước khi sử dụng thuốc.`;
+        
+        return response;
+    }
+    
+    // Extract specific section from content
+    extractSection(content, keywords) {
+        const lines = content.split('\n');
+        let relevantLines = [];
+        let capturing = false;
+        
+        for (const line of lines) {
+            const lineLower = line.toLowerCase();
+            
+            // Check if this line starts a relevant section
+            if (keywords.some(keyword => lineLower.includes(keyword.toLowerCase()))) {
+                capturing = true;
+                relevantLines.push(line);
+                continue;
+            }
+            
+            // If we're capturing and hit another section header, stop
+            if (capturing && line.match(/^[0-9]+\.|^[A-Z][^:]*:/) && !keywords.some(k => lineLower.includes(k.toLowerCase()))) {
+                break;
+            }
+            
+            // Continue capturing if we're in a relevant section
+            if (capturing) {
+                relevantLines.push(line);
+            }
+        }
+        
+        return relevantLines.length > 1 ? relevantLines.join('\n').trim() : null;
+    }
+
+    // Get quota status
+    getQuotaStatus() {
+        return {
+            quotaExceeded: this.quotaExceeded,
+            dailyRequestCount: this.dailyRequestCount,
+            maxDailyRequests: 50, // Gemini free tier limit
+            remaining: Math.max(0, 50 - this.dailyRequestCount)
+        };
+    }
+
+    // Reset quota (call this daily or when needed)
+    resetQuota() {
+        this.quotaExceeded = false;
+        this.dailyRequestCount = 0;
+        console.log('🔄 Gemini AI quota reset');
     }
 
     // Log chat interaction
