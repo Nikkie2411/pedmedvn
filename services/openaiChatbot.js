@@ -1,6 +1,6 @@
-// OpenAI GPT Chatbot Service với Google Sheets
+// OpenAI GPT Chatbot Service - Sử dụng drugSheets như các service khác
 const OpenAI = require('openai');
-const { searchTrainingData, getProcessedTrainingData } = require('./sheetsTraining');
+const { searchDrugData, loadDrugData } = require('./drugSheets');
 
 class OpenAIChatbotService {
     constructor() {
@@ -9,34 +9,36 @@ class OpenAIChatbotService {
         this.knownDrugs = new Set();
         
         // Initialize OpenAI
-        this.openaiApiKey = process.env.OPENAI_API_KEY; // Free tier: $5 credit
+        this.openaiApiKey = process.env.OPENAI_API_KEY;
         if (this.openaiApiKey) {
             this.openai = new OpenAI({
                 apiKey: this.openaiApiKey,
             });
+            console.log('✅ OpenAI GPT initialized! Key found:', this.openaiApiKey ? 'Yes' : 'No');
         } else {
             console.warn('⚠️ OpenAI API key not found. Set OPENAI_API_KEY in environment variables.');
         }
     }
 
-    // Initialize với Google Sheets training data
+    // Initialize với Google Sheets drug data (giống như Groq và Gemini)
     async initialize() {
         try {
-            console.log('🤖 Initializing OpenAI GPT chatbot service with Google Sheets...');
+            console.log('🤖 Initializing OpenAI GPT chatbot service with drug data...');
             
-            // Load training data from Google Sheets
-            await this.loadTrainingDataFromSheets();
-            console.log(`📚 Loaded ${this.documents.length} training entries from Google Sheets`);
+            // Load drug database from Google Sheets 
+            await this.loadDrugDataFromSheets();
+            console.log(`💊 Loaded ${this.documents.length} drugs from Google Sheets`);
             
             if (this.documents.length === 0) {
-                console.warn('⚠️ No training data found in Google Sheets');
-                throw new Error('No training data available. Please add data to the Google Sheets.');
+                console.warn('⚠️ No drug data found in Google Sheets');
+                throw new Error('No drug data available. Please add drug information to the Google Sheets.');
             }
             
             this.extractDrugNames();
             this.isInitialized = true;
             
-            console.log(`✅ OpenAI GPT chatbot initialized with ${this.documents.length} training entries`);
+            console.log(`✅ OpenAI GPT chatbot initialized with ${this.documents.length} drugs`);
+            console.log(`💊 Known drugs: ${Array.from(this.knownDrugs).slice(0, 5).join(', ')}...`);
             
         } catch (error) {
             console.error('❌ Failed to initialize OpenAI GPT chatbot:', error);
@@ -44,165 +46,129 @@ class OpenAIChatbotService {
         }
     }
 
-    // Load training data từ Google Sheets
-    async loadTrainingDataFromSheets() {
+    // Load drug data từ Google Sheets (copy từ groqChatbotDrug.js)
+    async loadDrugDataFromSheets() {
         try {
-            const trainingData = await getProcessedTrainingData('pedmedvnch');
+            const drugData = await loadDrugData('pedmedvnch');
             
-            console.log(`� Found ${trainingData.length} training entries in Google Sheets`);
+            console.log(`💊 Found ${drugData.length} drugs in Google Sheets`);
             
             this.documents = [];
             
-            trainingData.forEach((entry, index) => {
-                // Create a document structure from sheet data
+            drugData.forEach((drug, index) => {
                 const doc = {
-                    id: `sheet_entry_${index + 1}`,
-                    title: entry.Topic || entry.Question || `Entry ${index + 1}`,
-                    content: this.combineSheetContent(entry),
-                    source: 'Google Sheets - PedMed Training Data',
-                    lastUpdated: new Date().toISOString(),
-                    type: 'medical_training_data',
-                    rawData: entry // Keep original sheet data for reference
+                    id: drug.id,
+                    title: drug.name,
+                    content: drug.structuredContent,
+                    source: drug.source,
+                    lastUpdated: drug.lastUpdated,
+                    type: drug.type,
+                    rawData: drug.originalData
                 };
                 
                 this.documents.push(doc);
-                console.log(`📄 Processed: ${doc.title} (${doc.content.length} characters)`);
+                console.log(`💊 Processed: ${drug.name} (${drug.structuredContent.length} characters)`);
             });
             
         } catch (error) {
-            console.error('❌ Error loading training data from Google Sheets:', error);
+            console.error('❌ Error loading drug data from Google Sheets:', error);
             throw error;
         }
     }
 
-    // Combine multiple fields from sheet into searchable content
-    combineSheetContent(entry) {
-        const contentParts = [];
-        
-        // Add all non-empty fields to content
-        Object.keys(entry).forEach(key => {
-            if (key !== 'searchableText' && entry[key] && entry[key].trim()) {
-                contentParts.push(`${key}: ${entry[key]}`);
-            }
-        });
-        
-        return contentParts.join('\n\n');
-    }
-
-    // Extract drug names
+    // Extract drug names từ database (copy từ groqChatbotDrug.js)
     extractDrugNames() {
         this.knownDrugs.clear();
         
         this.documents.forEach(doc => {
             if (doc.title) {
-                const drugMatch = doc.title.match(/([A-Za-z]+)/g);
-                if (drugMatch) {
-                    drugMatch.forEach(drug => {
-                        if (drug.length > 3) {
-                            this.knownDrugs.add(drug.toLowerCase());
+                this.knownDrugs.add(doc.title.toLowerCase());
+                
+                const drugWords = doc.title.split(/\s+/);
+                drugWords.forEach(word => {
+                    if (word.length > 3) {
+                        this.knownDrugs.add(word.toLowerCase());
+                    }
+                });
+            }
+            
+            if (doc.rawData) {
+                const altNames = doc.rawData['Tên khác'] || doc.rawData['Alternative Names'] || '';
+                if (altNames) {
+                    const alternativeNames = altNames.split(/[,;\n]/);
+                    alternativeNames.forEach(altName => {
+                        const cleanName = altName.trim().toLowerCase();
+                        if (cleanName.length > 2) {
+                            this.knownDrugs.add(cleanName);
                         }
                     });
                 }
             }
-            
-            if (doc.drugName) {
-                this.knownDrugs.add(doc.drugName.toLowerCase());
-            }
         });
     }
 
-    // Validate drug query
+    // Validate drug query (copy từ groqChatbotDrug.js)
     validateDrugQuery(query) {
         const processedQuery = query.toLowerCase();
         
         const drugQuestionPatterns = [
             /thuoc|thuốc/i,
             /lieu\s*luong|liều\s*lượng/i,
-            /tac\s*dung|tác\s*dụng/i,
+            /lieu\s*dung|liều\s*dùng/i,
             /chi\s*dinh|chỉ\s*định/i,
-            /dung|dùng/i,
-            /viên|siro|gel/i,
+            /chong\s*chi\s*dinh|chống\s*chỉ\s*định/i,
+            /tac\s*dung|tác\s*dụng/i,
+            /phu\s*tac\s*dung|phụ\s*tác\s*dụng/i,
+            /cach\s*dung|cách\s*dùng/i,
+            /dieu\s*tri|điều\s*trị/i,
+            /than\s*trong|thận\s*trọng/i,
+            /tuong\s*tac|tương\s*tác/i,
+            /ngo\s*doc|ngộ\s*độc/i,
+            /qua\s*lieu|quá\s*liều/i
         ];
         
-        const isDrugQuery = drugQuestionPatterns.some(pattern => pattern.test(query));
+        const containsDrugQuestion = drugQuestionPatterns.some(pattern => pattern.test(processedQuery));
         
-        if (!isDrugQuery) {
-            return { isValid: true };
-        }
-        
-        const mentionedDrugs = [];
-        this.knownDrugs.forEach(drug => {
-            if (processedQuery.includes(drug)) {
-                mentionedDrugs.push(drug);
-            }
-        });
-        
-        if (mentionedDrugs.length === 0) {
-            const knownDrugsList = Array.from(this.knownDrugs).slice(0, 10).join(', ');
-            return { 
+        if (!containsDrugQuestion) {
+            return {
                 isValid: false,
-                message: `Xin lỗi, tôi chỉ có thể trả lời về các thuốc có trong tài liệu đã được cập nhật từ Google Drive.
-
-Các thuốc tôi có thông tin: ${knownDrugsList}${this.knownDrugs.size > 10 ? '...' : ''}
-
-Vui lòng hỏi về một trong những thuốc này.`
+                message: "Xin chào! Tôi là hệ thống hỗ trợ thông tin về thuốc nhi khoa. Vui lòng hỏi về thuốc, liều dùng, chỉ định, chống chỉ định, tác dụng phụ, hoặc các thông tin y tế liên quan."
             };
         }
         
-        return { isValid: true, mentionedDrugs };
+        return { isValid: true };
     }
 
-    // Search relevant documents using Google Sheets
-    async searchRelevantDocuments(query, limit = 3) {
+    // Search relevant drugs (copy từ groqChatbotDrug.js)
+    async searchRelevantDrugs(query, limit = 5) {
         try {
-            // Use the sheets training search for more accurate results
-            const searchResults = await searchTrainingData(query, 'pedmedvnch', limit);
-            
-            if (searchResults.length > 0) {
-                console.log(`🔍 Found ${searchResults.length} relevant training entries from Sheets`);
-                return searchResults.map(result => ({
-                    title: result.Topic || result.Question || 'Training Entry',
-                    content: this.combineSheetContent(result),
-                    source: 'Google Sheets Training Data',
-                    relevanceScore: result.relevanceScore,
-                    rawData: result
-                }));
-            }
-
-            // Fallback to local document search if available
-            if (this.documents.length === 0) return [];
-            
-            const queryLower = query.toLowerCase();
+            const searchTerms = query.toLowerCase().split(/\s+/);
             const scores = [];
             
-            this.documents.forEach((doc, index) => {
+            this.documents.forEach(doc => {
                 let score = 0;
-                const contentLower = doc.content.toLowerCase();
-                const titleLower = (doc.title || '').toLowerCase();
+                const docText = (doc.title + ' ' + doc.content).toLowerCase();
                 
-                if (titleLower.includes(queryLower)) score += 50;
-                if (contentLower.includes(queryLower)) score += 30;
-                
-                const queryWords = queryLower.split(/\s+/);
-                queryWords.forEach(word => {
-                    if (word.length > 2) {
-                        if (titleLower.includes(word)) score += 20;
-                        if (contentLower.includes(word)) score += 10;
+                searchTerms.forEach(term => {
+                    if (term.length > 2) {
+                        const termCount = (docText.match(new RegExp(term, 'g')) || []).length;
+                        score += termCount * (term.length > 4 ? 2 : 1);
+                        
+                        if (doc.title.toLowerCase().includes(term)) {
+                            score += 10;
+                        }
                     }
                 });
                 
                 if (score > 0) {
-                    scores.push({
-                        index, score, title: doc.title,
-                        content: doc.content, source: doc.source
-                    });
+                    scores.push({ ...doc, score });
                 }
             });
             
             return scores.sort((a, b) => b.score - a.score).slice(0, limit);
             
         } catch (error) {
-            console.error('❌ Error searching relevant documents:', error);
+            console.error('❌ Error searching relevant drugs:', error);
             return [];
         }
     }
@@ -235,24 +201,26 @@ Vui lòng hỏi về một trong những thuốc này.`
             }
             
             const startTime = Date.now();
-            const relevantDocs = await this.searchRelevantDocuments(message);
             
-            if (relevantDocs.length === 0) {
+            // Search relevant drugs from Google Sheets
+            const relevantDrugs = await this.searchRelevantDrugs(message);
+            
+            if (relevantDrugs.length === 0) {
                 return {
                     success: true,
                     data: {
-                        message: "Không tìm thấy thông tin liên quan trong dữ liệu huấn luyện Google Sheets.",
+                        message: "Không tìm thấy thông tin liên quan về thuốc trong cơ sở dữ liệu. Vui lòng kiểm tra lại tên thuốc hoặc từ khóa.",
                         isAiGenerated: false
                     }
                 };
             }
             
-            // Prepare context for OpenAI
-            const context = relevantDocs.map(doc => 
-                `Tài liệu: ${doc.title}\nNguồn: ${doc.source}\nNội dung: ${doc.content.substring(0, 1000)}...`
-            ).join('\n\n');
+            // Prepare context for OpenAI from Google Sheets drug data
+            const context = relevantDrugs.map(drug => {
+                return `Thuốc: ${drug.title}\nThông tin chi tiết:\n${drug.content}`;
+            }).join('\n\n---\n\n');
             
-            // Create messages for OpenAI với prompt cải tiến
+            // Create messages for OpenAI với prompt cải tiến như Gemini
             const completion = await this.openai.chat.completions.create({
                 model: "gpt-4o-mini", // Model tốt hơn, cost-effective
                 messages: [
@@ -289,8 +257,8 @@ ${context}`
                         content: message
                     }
                 ],
-                max_tokens: 800, // Tăng để có câu trả lời chi tiết hơn
-                temperature: 0.2, // Giảm để có câu trả lời chính xác hơn
+                max_tokens: 800,
+                temperature: 0.2
             });
 
             const aiAnswer = completion.choices[0].message.content;
@@ -302,84 +270,44 @@ ${context}`
                 success: true,
                 data: {
                     message: aiAnswer,
-                    responseTime,
                     isAiGenerated: true,
-                    aiModel: 'OpenAI GPT-3.5 Turbo'
+                    responseTime: responseTime,
+                    modelUsed: 'OpenAI GPT-4o-mini',
+                    relevantDrugsCount: relevantDrugs.length,
+                    relevantDrugs: relevantDrugs.map(d => d.title)
                 }
             };
             
         } catch (error) {
-            console.error('❌ OpenAI GPT error:', error);
+            console.error('❌ OpenAI GPT chat error:', error);
+            
             return {
                 success: false,
-                message: 'Đã xảy ra lỗi khi xử lý với OpenAI GPT. Vui lòng thử lại sau.',
+                message: 'Có lỗi xảy ra với OpenAI GPT. Vui lòng thử lại sau.',
                 error: error.message
             };
         }
     }
 
-    // Log chat interactions
-    async logChatInteraction(userId, message, response, responseTime) {
+    // Log chat interaction
+    async logChatInteraction(userId, question, answer, responseTime) {
         try {
-            const logEntry = {
-                timestamp: new Date().toISOString(),
-                userId,
-                message,
-                response: response.substring(0, 200) + '...',
-                responseTime,
-                aiModel: 'OpenAI GPT-3.5'
-            };
-            
-            console.log('📊 OpenAI chat logged:', JSON.stringify(logEntry));
+            console.log(`📊 OpenAI Chat Log - User: ${userId}, Response Time: ${responseTime}ms`);
         } catch (error) {
-            console.error('❌ Error logging chat:', error);
+            console.error('❌ Error logging chat interaction:', error);
         }
     }
 
-    // Add document
-    async addDocument(title, content, source = 'Manual Upload') {
-        try {
-            const processedContent = this.enhancedProcessor.processRealMedicalDocument(content, title);
-            
-            if (!processedContent) {
-                return { success: false, error: 'Document processing failed' };
-            }
-            
-            const newDoc = {
-                id: Date.now().toString(),
-                title,
-                content: processedContent.content,
-                source,
-                addedAt: new Date().toISOString(),
-                drugName: processedContent.drugName,
-                qualityScore: processedContent.qualityScore
-            };
-            
-            this.documents.push(newDoc);
-            await this.saveKnowledgeBase();
-            this.extractDrugNames();
-            
-            return { 
-                success: true, 
-                message: `Added document: ${title}`,
-                drugName: processedContent.drugName
-            };
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
-    }
-
-    // Get statistics
-    getStats() {
+    // Health check
+    async healthCheck() {
         return {
-            documentsCount: this.documents.length,
+            service: 'OpenAI GPT Chatbot',
+            status: this.isInitialized ? 'ready' : 'initializing',
+            documentsLoaded: this.documents.length,
             knownDrugsCount: this.knownDrugs.size,
-            isInitialized: this.isInitialized,
-            aiModel: 'OpenAI GPT-3.5 Turbo',
-            isAiEnabled: !!this.openai,
-            lastUpdated: new Date().toISOString()
+            hasApiKey: !!this.openaiApiKey
         };
     }
 }
 
-module.exports = new OpenAIChatbotService();
+module.exports = OpenAIChatbotService;
