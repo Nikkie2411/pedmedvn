@@ -95,43 +95,6 @@ class AIChatbotManager {
         }
     }
 
-    // Initialize tất cả AI providers có sẵn
-    async initialize() {
-        try {
-            console.log('🚀 Initializing AI Chatbot Manager...');
-            
-            // Debug environment variables
-            console.log('🔍 Checking environment variables...');
-            const envKeys = ['GEMINI_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY'];
-            envKeys.forEach(key => {
-                const value = process.env[key];
-                if (value) {
-                    console.log(`✅ ${key}: ${value.substring(0, 10)}...`);
-                } else {
-                    console.log(`❌ ${key}: not found`);
-                }
-            });
-            
-            // Load available providers
-            await this.loadProviders();
-            
-            // Initialize current provider
-            if (this.providers[this.currentProvider]) {
-                await this.providers[this.currentProvider].initialize();
-                console.log(`✅ ${this.currentProvider.toUpperCase()} AI provider initialized successfully`);
-            } else {
-                console.warn(`⚠️ Provider ${this.currentProvider} not available, falling back to basic chatbot`);
-                await this.initializeFallback();
-            }
-            
-            this.isInitialized = true;
-            
-        } catch (error) {
-            console.error('❌ Failed to initialize AI Chatbot Manager:', error);
-            await this.initializeFallback();
-        }
-    }
-
     // Load các AI providers với Google Sheets support
     async loadProviders() {
         try {
@@ -283,7 +246,7 @@ class AIChatbotManager {
                 
             case 'groq':
                 // Check if Groq has any API key (env or fallback)
-                if (provider.groqApiKey) {
+                if (process.env.GROQ_API_KEY) {
                     console.log('✅ Groq provider has API key');
                     return 'ready';
                 } else {
@@ -318,132 +281,132 @@ class AIChatbotManager {
             // Add provider info to response
             if (result.success && result.data) {
                 result.data.aiProvider = this.currentProvider.toUpperCase();
+                result.data.modelUsed = result.data.modelUsed || this.currentProvider;
             }
-            
+
             return result;
             
         } catch (error) {
-            console.error(`❌ ${this.currentProvider.toUpperCase()} AI chat error:`, error);
+            console.error(`❌ AI chat error with ${this.currentProvider}:`, error);
             
-            // Check if it's an API key error
-            if (error.message && (
-                error.message.includes('Invalid API Key') || 
-                error.message.includes('401') ||
-                error.message.includes('AuthenticationError') ||
-                error.message.includes('invalid_api_key')
-            )) {
-                console.log(`🔑 API Key error detected for ${this.currentProvider}, switching to original chatbot...`);
-                
-                // Force switch to original chatbot
-                if (this.providers.original) {
-                    try {
-                        console.log('🔄 Auto-switching to original chatbot due to API key error...');
-                        this.currentProvider = 'original';
-                        await this.providers.original.initialize();
-                        
-                        const fallbackResult = await this.providers.original.chat(message, userId);
-                        
-                        // Add note about fallback
-                        if (fallbackResult.success && fallbackResult.data) {
-                            fallbackResult.data.aiProvider = 'ORIGINAL (Fallback)';
-                            fallbackResult.data.fallbackReason = 'AI API key invalid';
-                        }
-                        
-                        return fallbackResult;
-                        
-                    } catch (fallbackError) {
-                        console.error('❌ Original chatbot fallback also failed:', fallbackError);
-                        return this.createErrorResponse('Cả AI service và fallback đều gặp lỗi. Vui lòng thử lại sau.');
-                    }
-                } else {
-                    return this.createErrorResponse('AI service không khả dụng. Vui lòng liên hệ admin để cấu hình API keys.');
-                }
-            }
-            
-            // Try fallback to original chatbot for other errors
-            if (this.currentProvider !== 'original' && this.providers.original) {
+            // Try fallback to original if current provider fails
+            if (this.currentProvider !== 'original') {
                 console.log('🔄 Falling back to original chatbot...');
                 try {
-                    const fallbackResult = await this.providers.original.chat(message, userId);
-                    if (fallbackResult.success && fallbackResult.data) {
-                        fallbackResult.data.aiProvider = 'ORIGINAL (Fallback)';
-                        fallbackResult.data.fallbackReason = 'Primary AI failed';
-                    }
-                    return fallbackResult;
+                    this.currentProvider = 'original';
+                    return await this.chat(message, userId);
                 } catch (fallbackError) {
                     console.error('❌ Fallback also failed:', fallbackError);
                 }
             }
             
-            return this.createErrorResponse('Đã xảy ra lỗi với tất cả AI providers. Vui lòng thử lại sau.');
+            // Return error response
+            return {
+                success: false,
+                message: 'AI service temporarily unavailable',
+                error: error.message
+            };
         }
     }
 
-    // Create error response helper
-    createErrorResponse(message) {
-        return {
-            success: false,
-            message: message,
-            data: {
-                message: message,
-                aiProvider: 'ERROR',
-                isAiGenerated: false
-            }
-        };
+    // Alias for generateResponse to maintain compatibility
+    async generateResponse(message, drugData = [], userId = 'anonymous') {
+        return await this.chat(message, userId);
     }
 
     // Get current provider info
     getCurrentProvider() {
-        return {
-            name: this.currentProvider,
-            service: this.providers[this.currentProvider],
-            isInitialized: this.isInitialized
-        };
+        try {
+            const provider = this.providers[this.currentProvider];
+            if (!provider) {
+                console.log('⚠️  Current provider not found, using fallback to original');
+                this.currentProvider = 'original';
+                return {
+                    name: 'original',
+                    service: this.providers['original'] || null,
+                    isInitialized: this.isInitialized
+                };
+            }
+            return {
+                name: this.currentProvider,
+                service: provider,
+                isInitialized: this.isInitialized
+            };
+        } catch (error) {
+            console.error('❌ Error getting current provider:', error);
+            return {
+                name: 'original',
+                service: null,
+                isInitialized: this.isInitialized
+            };
+        }
     }
 
     // Get all available providers
     getAvailableProviders() {
-        const providers = [];
-        
-        Object.keys(this.providerClasses).forEach(key => {
-            const providerClass = this.providerClasses[key];
-            let description = '';
-            let displayName = '';
+        try {
+            const providers = [];
             
-            switch(key) {
-                case 'gemini':
-                    displayName = 'Google Gemini AI';
-                    description = 'AI miễn phí từ Google với 50 requests/day - tốt cho tiếng Việt';
-                    break;
-                case 'openai':
-                    displayName = 'OpenAI GPT';
-                    description = 'AI chất lượng cao với $5 free credit';
-                    break;
-                case 'groq':
-                    displayName = 'Groq AI';
-                    description = 'AI siêu nhanh với 14,400 requests/day MIỄN PHÍ';
-                    break;
-                case 'original':
-                    displayName = 'Original Chatbot';
-                    description = 'Chatbot gốc sử dụng documents cục bộ';
-                    break;
-                default:
-                    displayName = key.toUpperCase();
-                    description = `AI Provider: ${key}`;
+            if (!this.providerClasses || Object.keys(this.providerClasses).length === 0) {
+                console.log('⚠️  No provider classes available, returning original only');
+                return [{
+                    name: 'original',
+                    displayName: 'Original Chatbot',
+                    description: 'Chatbot gốc sử dụng documents cục bộ',
+                    status: 'available',
+                    isActive: true
+                }];
             }
             
-            const status = this.getProviderStatus(key);
-            
-            providers.push({
-                name: key,
-                displayName,
-                description,
-                status,
-                isActive: key === this.currentProvider
+            Object.keys(this.providerClasses).forEach(key => {
+                const providerClass = this.providerClasses[key];
+                let description = '';
+                let displayName = '';
+                
+                switch(key) {
+                    case 'gemini':
+                        displayName = 'Google Gemini AI';
+                        description = 'AI miễn phí từ Google với 50 requests/day - tốt cho tiếng Việt';
+                        break;
+                    case 'openai':
+                        displayName = 'OpenAI GPT';
+                        description = 'AI chất lượng cao với $5 free credit';
+                        break;
+                    case 'groq':
+                        displayName = 'Groq AI';
+                        description = 'AI siêu nhanh với 14,400 requests/day MIỄN PHÍ';
+                        break;
+                    case 'original':
+                        displayName = 'Original Chatbot';
+                        description = 'Chatbot gốc sử dụng documents cục bộ';
+                        break;
+                    default:
+                        displayName = key.toUpperCase();
+                        description = `AI Provider: ${key}`;
+                }
+                
+                const status = this.getProviderStatus(key);
+                
+                providers.push({
+                    name: key,
+                    displayName,
+                    description,
+                    status,
+                    isActive: key === this.currentProvider
+                });
             });
-        });
-        
-        return providers;
+            
+            return providers;
+        } catch (error) {
+            console.error('❌ Error getting available providers:', error);
+            return [{
+                name: 'original',
+                displayName: 'Original Chatbot',
+                description: 'Chatbot gốc sử dụng documents cục bộ',
+                status: 'available',
+                isActive: true
+            }];
+        }
     }
 
     // Get comprehensive statistics
@@ -514,4 +477,4 @@ class AIChatbotManager {
     }
 }
 
-module.exports = new AIChatbotManager();
+module.exports = AIChatbotManager;

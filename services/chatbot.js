@@ -195,29 +195,118 @@ class ChatbotService {
                 };
             }
 
-            // Generate simple response based on top document
+            // Generate enhanced response based on query intent and drug data
             const topDoc = relevantDocs[0];
-            let response = `Thông tin về ${topDoc.title}:\n\n`;
+            let response = '';
             
-            // Extract key information from structured content
+            // Check if this is a contraindication query
+            const isContraindicationQuery = message.toLowerCase().includes('chống chỉ định') || 
+                                          message.toLowerCase().includes('không được dùng') ||
+                                          message.toLowerCase().includes('cấm') ||
+                                          message.toLowerCase().includes('tránh');
+            
+            const isDosageQuery = message.toLowerCase().includes('liều') || 
+                                message.toLowerCase().includes('dose') ||
+                                message.toLowerCase().includes('bao nhiêu');
+            
+            const isSideEffectQuery = message.toLowerCase().includes('tác dụng phụ') ||
+                                    message.toLowerCase().includes('side effect') ||
+                                    message.toLowerCase().includes('phản ứng');
+
+            // Extract structured information from content
             const lines = topDoc.content.split('\n');
-            let keyInfo = [];
+            const drugInfo = {};
             
             lines.forEach(line => {
-                if (line.includes('Công dụng:') || line.includes('Indication:') || 
-                    line.includes('Liều dùng:') || line.includes('Dosage:') ||
-                    line.includes('Tác dụng phụ:') || line.includes('Side Effects:')) {
-                    keyInfo.push(line);
+                const lowerLine = line.toLowerCase();
+                if (lowerLine.includes('3. chống chỉ định:')) {
+                    drugInfo.contraindications = line.split(':')[1]?.trim();
+                } else if (lowerLine.includes('2.2. liều thông thường trẻ em:')) {
+                    drugInfo.dosage = line.split(':')[1]?.trim();
+                } else if (lowerLine.includes('2.1. liều thông thường trẻ sơ sinh:')) {
+                    drugInfo.newbornDosage = line.split(':')[1]?.trim();
+                } else if (lowerLine.includes('4. tác dụng không mong muốn')) {
+                    drugInfo.sideEffects = line.split(':')[1]?.trim();
+                } else if (lowerLine.includes('1. phân loại dược lý:')) {
+                    drugInfo.classification = line.split(':')[1]?.trim();
+                } else if (lowerLine.includes('6. tương tác thuốc:')) {
+                    drugInfo.interactions = line.split(':')[1]?.trim();
+                } else if (lowerLine.includes('5. cách dùng')) {
+                    drugInfo.administration = line.split(':')[1]?.trim();
+                } else if (lowerLine.includes('8. theo dõi điều trị:')) {
+                    drugInfo.monitoring = line.split(':')[1]?.trim();
                 }
             });
-            
-            if (keyInfo.length > 0) {
-                response += keyInfo.slice(0, 3).join('\n\n');
+
+            // Generate targeted response based on query
+            if (isContraindicationQuery && drugInfo.contraindications) {
+                response = `🚨 **CHỐNG CHỈ ĐỊNH ${topDoc.title.toUpperCase()}:**\n\n`;
+                response += `⛔ ${drugInfo.contraindications}\n\n`;
+                
+                if (drugInfo.monitoring) {
+                    response += `📊 **THEO DÕI ĐIỀU TRỊ:**\n${drugInfo.monitoring}\n\n`;
+                }
+                
+                response += `💡 **Lý do quan trọng:** Chống chỉ định là những tình huống tuyệt đối KHÔNG được sử dụng thuốc vì có thể gây nguy hiểm nghiêm trọng cho bệnh nhân.`;
+                
+            } else if (isDosageQuery) {
+                response = `💊 **LIỀU DÙNG ${topDoc.title.toUpperCase()}:**\n\n`;
+                
+                if (drugInfo.newbornDosage) {
+                    response += `� **Trẻ sơ sinh:** ${drugInfo.newbornDosage}\n\n`;
+                }
+                
+                if (drugInfo.dosage) {
+                    response += `🧒 **Trẻ em:** ${drugInfo.dosage}\n\n`;
+                }
+                
+                if (drugInfo.contraindications) {
+                    response += `⚠️ **Chống chỉ định:** ${drugInfo.contraindications}\n\n`;
+                }
+                
+                if (drugInfo.administration) {
+                    response += `📋 **Cách dùng:** ${drugInfo.administration}\n\n`;
+                }
+                
+            } else if (isSideEffectQuery && drugInfo.sideEffects) {
+                response = `⚡ **TÁC DỤNG KHÔNG MONG MUỐN ${topDoc.title.toUpperCase()}:**\n\n`;
+                response += `🔍 ${drugInfo.sideEffects}\n\n`;
+                
+                if (drugInfo.monitoring) {
+                    response += `📊 **Theo dõi:** ${drugInfo.monitoring}\n\n`;
+                }
+                
             } else {
-                response += topDoc.content.substring(0, 500) + '...';
+                // General response with key information
+                response = `📋 **THÔNG TIN ${topDoc.title.toUpperCase()}:**\n\n`;
+                
+                if (drugInfo.classification) {
+                    response += `🏷️ **Phân loại:** ${drugInfo.classification}\n\n`;
+                }
+                
+                // Always show contraindications first for safety
+                if (drugInfo.contraindications) {
+                    response += `🚨 **Chống chỉ định:** ${drugInfo.contraindications}\n\n`;
+                }
+                
+                if (drugInfo.dosage) {
+                    response += `💊 **Liều dùng trẻ em:** ${drugInfo.dosage}\n\n`;
+                }
+                
+                if (drugInfo.newbornDosage) {
+                    response += `👶 **Liều dùng trẻ sơ sinh:** ${drugInfo.newbornDosage}\n\n`;
+                }
+                
+                if (drugInfo.sideEffects) {
+                    response += `⚡ **Tác dụng không mong muốn:** ${drugInfo.sideEffects}\n\n`;
+                }
+                
+                if (drugInfo.interactions) {
+                    response += `🔄 **Tương tác thuốc:** ${drugInfo.interactions}\n\n`;
+                }
             }
             
-            response += '\n\n⚠️ Thông tin này chỉ mang tính chất tham khảo. Vui lòng tham khảo ý kiến bác sĩ hoặc dược sĩ trước khi sử dụng thuốc.';
+            response += '\n⚠️ **QUAN TRỌNG:** Thông tin này chỉ mang tính chất tham khảo. Luôn tham khảo ý kiến bác sĩ hoặc dược sĩ trước khi sử dụng thuốc, đặc biệt với trẻ em.';
 
             return {
                 success: true,

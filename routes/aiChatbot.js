@@ -43,8 +43,21 @@ router.get('/health', async (req, res) => {
 // Get available AI providers
 router.get('/providers', async (req, res) => {
     try {
+        console.log('📋 GET /providers called');
+        console.log('🔍 Manager initialized:', aiChatbotManager.isInitialized);
+        console.log('🔍 Current provider:', aiChatbotManager.currentProvider);
+        
+        // Ensure manager is initialized
+        if (!aiChatbotManager.isInitialized) {
+            console.log('🚀 Initializing AI manager first...');
+            await aiChatbotManager.initialize();
+        }
+        
         const providers = aiChatbotManager.getAvailableProviders();
         const currentProvider = aiChatbotManager.getCurrentProvider();
+        
+        console.log('✅ Providers loaded:', providers.length);
+        console.log('✅ Current provider:', currentProvider.name);
         
         res.json({
             success: true,
@@ -86,10 +99,12 @@ router.get('/providers', async (req, res) => {
             }
         });
     } catch (error) {
+        console.error('❌ GET /providers error:', error);
         res.status(500).json({
             success: false,
             message: 'Không thể lấy thông tin providers',
-            error: error.message
+            error: error.message,
+            stack: error.stack
         });
     }
 });

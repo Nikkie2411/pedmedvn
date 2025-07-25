@@ -85,7 +85,8 @@ async function startServer() {
   // Initialize chatbot service với error handling
   try {
     console.log('🤖 Initializing chatbot service...');
-    const chatbotService = require('./services/chatbot');
+    const ChatbotService = require('./services/chatbot');
+    const chatbotService = new ChatbotService();
     await chatbotService.initialize();
     console.log('✅ Chatbot service initialized successfully');
   } catch (error) {
