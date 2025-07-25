@@ -234,14 +234,38 @@ Vui lòng hỏi về một trong những thuốc này hoặc sử dụng các t�
                 };
             }
             
-            // Prepare context for Groq from Google Sheets drug data
-            const context = relevantDrugs.map(drug => 
-                `Thuốc: ${drug.title}
-Nguồn: ${drug.source}
-Độ liên quan: ${drug.relevanceScore || 'N/A'}
-Thông tin chi tiết:
-${drug.content.substring(0, 2000)}...`
-            ).join('\n\n');
+            // Prepare context for Groq from Google Sheets drug data với đầy đủ thông tin
+            const context = relevantDrugs.map(drug => {
+                const data = drug.rawData || drug.originalData || {};
+                
+                // Xây dựng thông tin chi tiết từ tất cả các cột
+                const drugInfo = [
+                    `=== ${drug.title.toUpperCase()} ===`,
+                    data['Hoạt chất'] ? `🔬 Hoạt chất: ${data['Hoạt chất']}` : '',
+                    data['Phân loại dược lý'] ? `📋 Phân loại dược lý: ${data['Phân loại dược lý']}` : '',
+                    '',
+                    '💊 LIỀU DÙNG:',
+                    data['Liều thông thường trẻ sơ sinh'] ? `👶 Trẻ sơ sinh: ${data['Liều thông thường trẻ sơ sinh']}` : '',
+                    data['Liều thông thường trẻ em'] ? `🧒 Trẻ em: ${data['Liều thông thường trẻ em']}` : '',
+                    '',
+                    '⚕️ HIỆU CHỈNH LIỀU:',
+                    data['Hiệu chỉnh liều theo chức năng thận'] ? `🫘 Chức năng thận: ${data['Hiệu chỉnh liều theo chức năng thận']}` : '',
+                    data['Hiệu chỉnh liều theo chức năng gan'] ? `🫀 Chức năng gan: ${data['Hiệu chỉnh liều theo chức năng gan']}` : '',
+                    '',
+                    data['Chống chỉ định'] ? `🚫 CHỐNG CHỈ ĐỊNH: ${data['Chống chỉ định']}` : '',
+                    data['Tác dụng không mong muốn'] ? `⚠️ TÁC DỤNG KHÔNG MONG MUỐN: ${data['Tác dụng không mong muốn']}` : '',
+                    data['Cách dùng (ngoài IV)'] ? `💉 CÁCH DÙNG: ${data['Cách dùng (ngoài IV)']}` : '',
+                    data['Tương tác thuốc chống chỉ định'] ? `⚡ TƯƠNG TÁC THUỐC: ${data['Tương tác thuốc chống chỉ định']}` : '',
+                    data['Ngộ độc/Quá liều'] ? `🆘 NGỘ ĐỘC/QUÁ LIỀU: ${data['Ngộ độc/Quá liều']}` : '',
+                    data['Các thông số cần theo dõi'] ? `📊 THEO DÕI: ${data['Các thông số cần theo dõi']}` : '',
+                    data['Bảo hiểm y tế thanh toán'] ? `💳 BẢO HIỂM Y TẾ: ${data['Bảo hiểm y tế thanh toán']}` : '',
+                    data['Cập nhật'] ? `📅 Cập nhật: ${data['Cập nhật']}` : '',
+                    `📍 Nguồn: ${drug.source}`,
+                    `📈 Độ liên quan: ${drug.relevanceScore || 'N/A'}`
+                ].filter(line => line.trim()).join('\n');
+                
+                return drugInfo;
+            }).join('\n\n' + '='.repeat(80) + '\n\n');
             
             // Create enhanced prompt for Groq with drug data
             const prompt = `Bạn là một dược sĩ chuyên nghiệp hỗ trợ tư vấn thông tin về thuốc. Hãy trả lời câu hỏi dựa CHÍNH XÁC trên thông tin thuốc được cung cấp từ cơ sở dữ liệu.
@@ -327,7 +351,7 @@ Hãy trả lời một cách chi tiết, chính xác và an toàn. Luôn kết t
         }
     }
 
-    // Generate fallback response when AI fails
+    // Generate fallback response when AI fails - với đầy đủ thông tin từ Google Sheets
     generateFallbackResponse(relevantDrugs, query) {
         if (!relevantDrugs || relevantDrugs.length === 0) {
             return "Xin lỗi, không tìm thấy thông tin về thuốc bạn hỏi trong cơ sở dữ liệu. Vui lòng thử lại với tên thuốc khác.";
@@ -335,43 +359,82 @@ Hãy trả lời một cách chi tiết, chính xác và an toàn. Luôn kết t
 
         const topDrug = relevantDrugs[0];
         const drugName = topDrug.title || topDrug.name;
-        const content = topDrug.content || '';
-        const queryLower = query.toLowerCase();
+        const data = topDrug.rawData || topDrug.originalData || {};
         
-        let response = `**Thông tin về ${drugName}:**\n\n`;
+        let response = `📋 **THÔNG TIN THUỐC: ${drugName.toUpperCase()}**\n\n`;
         
-        // Add relevant sections based on query
-        if (queryLower.includes('liều') || queryLower.includes('dose')) {
-            const doseInfo = this.extractSection(content, ['liều', 'dose', '2.1.', '2.2.', '2.3.', '2.4.']);
-            if (doseInfo) response += `📊 **Liều dùng:**\n${doseInfo}\n\n`;
+        // Hiển thị tất cả thông tin có sẵn từ Google Sheets
+        if (data['Hoạt chất']) {
+            response += `🔬 **Hoạt chất:** ${data['Hoạt chất']}\n\n`;
         }
         
-        if (queryLower.includes('tác dụng phụ') || queryLower.includes('side effect')) {
-            const sideEffects = this.extractSection(content, ['tác dụng phụ', 'side effect', '4.']);
-            if (sideEffects) response += `⚠️ **Tác dụng phụ:**\n${sideEffects}\n\n`;
+        if (data['Phân loại dược lý']) {
+            response += `� **Phân loại dược lý:** ${data['Phân loại dược lý']}\n\n`;
         }
         
-        if (queryLower.includes('chống chỉ định')) {
-            const contraindications = this.extractSection(content, ['chống chỉ định', '3.']);
-            if (contraindications) response += `🚫 **Chống chỉ định:**\n${contraindications}\n\n`;
+        // Thông tin liều dùng
+        response += `💊 **LIỀU DÙNG:**\n`;
+        if (data['Liều thông thường trẻ sơ sinh']) {
+            response += `👶 **Trẻ sơ sinh:** ${data['Liều thông thường trẻ sơ sinh']}\n`;
+        }
+        if (data['Liều thông thường trẻ em']) {
+            response += `🧒 **Trẻ em:** ${data['Liều thông thường trẻ em']}\n`;
+        }
+        response += '\n';
+        
+        // Hiệu chỉnh liều
+        response += `⚕️ **HIỆU CHỈNH LIỀU:**\n`;
+        if (data['Hiệu chỉnh liều theo chức năng thận']) {
+            response += `🫘 **Chức năng thận:** ${data['Hiệu chỉnh liều theo chức năng thận']}\n`;
+        }
+        if (data['Hiệu chỉnh liều theo chức năng gan']) {
+            response += `🫀 **Chức năng gan:** ${data['Hiệu chỉnh liều theo chức năng gan']}\n`;
+        }
+        response += '\n';
+        
+        // Chống chỉ định
+        if (data['Chống chỉ định']) {
+            response += `🚫 **CHỐNG CHỈ ĐỊNH:**\n${data['Chống chỉ định']}\n\n`;
         }
         
-        if (queryLower.includes('tương tác')) {
-            const interactions = this.extractSection(content, ['tương tác', '6.']);
-            if (interactions) response += `🔄 **Tương tác thuốc:**\n${interactions}\n\n`;
+        // Tác dụng không mong muốn
+        if (data['Tác dụng không mong muốn']) {
+            response += `⚠️ **TÁC DỤNG KHÔNG MONG MUỐN:**\n${data['Tác dụng không mong muốn']}\n\n`;
         }
         
-        if (queryLower.includes('cách dùng')) {
-            const usage = this.extractSection(content, ['cách dùng', '5.']);
-            if (usage) response += `💊 **Cách dùng:**\n${usage}\n\n`;
+        // Cách dùng
+        if (data['Cách dùng (ngoài IV)']) {
+            response += `💉 **CÁCH DÙNG:**\n${data['Cách dùng (ngoài IV)']}\n\n`;
         }
         
-        // If no specific section found, show general info
-        if (response === `**Thông tin về ${drugName}:**\n\n`) {
-            response += content.substring(0, 500) + (content.length > 500 ? '...' : '') + '\n\n';
+        // Tương tác thuốc
+        if (data['Tương tác thuốc chống chỉ định']) {
+            response += `⚡ **TƯƠNG TÁC THUỐC CHỐNG CHỈ ĐỊNH:**\n${data['Tương tác thuốc chống chỉ định']}\n\n`;
         }
         
-        response += `\n⚠️ **Lưu ý quan trọng:** Đây là thông tin tham khảo từ cơ sở dữ liệu. Vui lòng tham khảo bác sĩ hoặc dược sĩ trước khi sử dụng thuốc.`;
+        // Ngộ độc/Quá liều
+        if (data['Ngộ độc/Quá liều']) {
+            response += `🆘 **NGỘ ĐỘC/QUÁ LIỀU:**\n${data['Ngộ độc/Quá liều']}\n\n`;
+        }
+        
+        // Theo dõi điều trị
+        if (data['Các thông số cần theo dõi']) {
+            response += `📊 **CÁC THÔNG SỐ CẦN THEO DÕI:**\n${data['Các thông số cần theo dõi']}\n\n`;
+        }
+        
+        // Bảo hiểm y tế
+        if (data['Bảo hiểm y tế thanh toán']) {
+            response += `💳 **BẢO HIỂM Y TẾ THANH TOÁN:**\n${data['Bảo hiểm y tế thanh toán']}\n\n`;
+        }
+        
+        // Thông tin cập nhật
+        if (data['Cập nhật']) {
+            response += `📅 **Cập nhật:** ${data['Cập nhật']}\n\n`;
+        }
+        
+        response += `\n🔍 **Nguồn:** ${topDrug.source || 'Google Sheets Database'}\n`;
+        response += `📈 **Độ liên quan:** ${topDrug.relevanceScore || 90}%\n\n`;
+        response += `⚠️ **LƯU Ý QUAN TRỌNG:** Đây là thông tin tham khảo từ cơ sở dữ liệu chuyên khoa. Vui lòng tham khảo bác sĩ hoặc dược sĩ trước khi sử dụng thuốc.`;
         
         return response;
     }
