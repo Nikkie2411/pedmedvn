@@ -1,33 +1,4 @@
-// AI Chatbot Manager - Quản lý v
-
-class AIChatbotManager {
-    constructor() {
-        this.providers = {};
-        this.currentProvider = process.env.AI_PROVIDER || 'gemini';
-        this.isInitialized = false;
-    }
-
-    // Initialize tất cả AI providers có sẵn
-    async initialize() {
-        try {
-            console.log('🚀 Initializing AI Chatbot Manager...');
-            
-            // Debug environment variables
-            console.log('🔍 Checking environment variables...');
-            const envKeys = ['GEMINI_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY'];
-            envKeys.forEach(key => {
-                const value = process.env[key];
-                if (value) {
-                    console.log(`✅ ${key}: ${value.substring(0, 10)}...`);
-                } else {
-                    console.log(`❌ ${key}: not found`);
-                }
-            });
-            
-            // Load available providers
-            await this.loadProviders();
-            
-            // Initialize current provider với error handling
+// AI Chatbot Manager - Quản lý v            // Initialize current provider với error handling
             if (this.providers[this.currentProvider]) {
                 try {
                     await this.providers[this.currentProvider].initialize();
@@ -71,11 +42,14 @@ class AIChatbotManager {
             }
             
             this.isInitialized = true;
-            console.log(`🤖 AI Chatbot Manager initializing with provider: ${this.currentProvider}`);
+            
         } catch (error) {
             console.error('❌ Failed to initialize AI Chatbot Manager:', error);
             await this.initializeFallback();
         }
+    }
+        
+        console.log(`🤖 AI Chatbot Manager initializing with provider: ${this.currentProvider}`);
     }
 
     // Initialize tất cả AI providers có sẵn
