@@ -65,13 +65,21 @@ class AIChatbotManager {
                 console.log('⚠️ OpenAI GPT provider not available:', error.message);
             }
 
-            // 3. Groq AI (MIỄN PHÍ và siêu nhanh) - Updated for Google Sheets
+            // 3. Groq AI (MIỄN PHÍ và siêu nhanh) - Drug focused with Google Sheets
             try {
-                const GroqChatbot = require('./groqChatbot');
-                this.providers.groq = GroqChatbot;
-                console.log('✅ Groq AI provider loaded');
+                const GroqChatbotDrug = require('./groqChatbotDrug');
+                this.providers.groq = GroqChatbotDrug;
+                console.log('✅ Groq Drug AI provider loaded (14,400 requests/day FREE)');
             } catch (error) {
-                console.log('⚠️ Groq AI provider not available:', error.message);
+                console.log('⚠️ Groq Drug AI provider not available:', error.message);
+                // Fallback to old Groq if exists
+                try {
+                    const GroqChatbot = require('./groqChatbot');
+                    this.providers.groq = GroqChatbot;
+                    console.log('✅ Groq AI provider (old) loaded as fallback');
+                } catch (fallbackError) {
+                    console.log('⚠️ Groq AI fallback also failed:', fallbackError.message);
+                }
             }
 
             // 4. Fallback to original chatbot (local documents) - only as last resort
