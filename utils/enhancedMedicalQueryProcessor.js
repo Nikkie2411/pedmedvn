@@ -157,8 +157,12 @@ class EnhancedMedicalQueryProcessor {
         
         drugKeywords.forEach(drugName => {
             drugData.forEach(drug => {
-                // Fix: Access HOẠT CHẤT from originalData structure
-                const drugActiveIngredient = drug.originalData?.['HOẠT CHẤT'] || drug.name || '';
+                // Handle both structures: direct load vs AI provider format
+                const drugActiveIngredient = drug.originalData?.['HOẠT CHẤT'] || 
+                                            drug.rawData?.['HOẠT CHẤT'] || 
+                                            drug.name || 
+                                            drug.title || 
+                                            '';
                 
                 // Direct match
                 if (drugActiveIngredient.toLowerCase().includes(drugName.toLowerCase())) {
@@ -211,7 +215,10 @@ class EnhancedMedicalQueryProcessor {
         matchedDrugs
             .sort((a, b) => b.confidence - a.confidence)
             .forEach(match => {
-                const key = match.drug.originalData?.['HOẠT CHẤT'] || match.drug.name;
+                const key = match.drug.originalData?.['HOẠT CHẤT'] || 
+                           match.drug.rawData?.['HOẠT CHẤT'] || 
+                           match.drug.name || 
+                           match.drug.title;
                 if (!seen.has(key)) {
                     seen.add(key);
                     uniqueMatches.push(match);
@@ -297,15 +304,16 @@ class EnhancedMedicalQueryProcessor {
         const drug = matchedDrug.drug;
         const header = matchedHeader.header;
         
-        const cellContent = drug.originalData?.[header] || '';
+        // Handle both data structures
+        const cellContent = drug.originalData?.[header] || drug.rawData?.[header] || '';
         
         return {
-            drugName: drug.originalData?.['HOẠT CHẤT'] || drug.name,
+            drugName: drug.originalData?.['HOẠT CHẤT'] || drug.rawData?.['HOẠT CHẤT'] || drug.name || drug.title,
             header: header,
             content: cellContent || '',
             drugConfidence: matchedDrug.confidence,
             headerConfidence: matchedHeader.confidence,
-            lastUpdated: drug.originalData?.['CẬP NHẬT'] || 'Not specified'
+            lastUpdated: drug.originalData?.['CẬP NHẬT'] || drug.rawData?.['CẬP NHẬT'] || 'Not specified'
         };
     }
 
@@ -403,7 +411,7 @@ class EnhancedMedicalQueryProcessor {
             }
             
             // Step 3: Match content headers
-            const availableHeaders = Object.keys(drugData[0]?.originalData || {});
+            const availableHeaders = Object.keys(drugData[0]?.originalData || drugData[0]?.rawData || {});
             const matchedHeaders = this.matchContentHeaders(keywords.categories, availableHeaders);
             console.log(`📋 Step 3 - Matched headers:`, matchedHeaders.length);
             
