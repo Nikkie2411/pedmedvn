@@ -570,4 +570,4 @@ Hãy trả lời một cách chi tiết, chính xác và an toàn. Luôn kết t
     }
 }
 
-module.exports = new GeminiChatbotService();
+module.exports = GeminiChatbotService;

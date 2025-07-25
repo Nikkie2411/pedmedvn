@@ -253,4 +253,4 @@ class ChatbotService {
     }
 }
 
-module.exports = new ChatbotService();
+module.exports = ChatbotService;

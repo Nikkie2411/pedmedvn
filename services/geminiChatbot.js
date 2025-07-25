@@ -390,4 +390,4 @@ Hãy trả lời một cách chi tiết, chính xác và dễ hiểu:`;
     }
 }
 
-module.exports = new GeminiChatbotService();
+module.exports = GeminiChatbotService;

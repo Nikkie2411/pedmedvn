@@ -372,4 +372,4 @@ ${context}`
     }
 }
 
-module.exports = new GroqChatbotService();
+module.exports = GroqChatbotService;
