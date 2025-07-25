@@ -7,6 +7,22 @@ class AIChatbotManager {
         this.isInitialized = false;
     }
 
+    // Helper function to create and initialize provider instance
+    async createProviderInstance(providerName) {
+        const ProviderClass = this.providers[providerName];
+        if (!ProviderClass) {
+            throw new Error(`Provider ${providerName} not found`);
+        }
+        
+        const instance = new ProviderClass();
+        await instance.initialize();
+        
+        // Replace class with instance
+        this.providers[providerName] = instance;
+        
+        return instance;
+    }
+
     // Initialize tất cả AI providers có sẵn
     async initialize() {
         try {
@@ -30,7 +46,7 @@ class AIChatbotManager {
             // Initialize current provider với error handling
             if (this.providers[this.currentProvider]) {
                 try {
-                    await this.providers[this.currentProvider].initialize();
+                    await this.createProviderInstance(this.currentProvider);
                     console.log(`✅ ${this.currentProvider.toUpperCase()} AI provider initialized successfully`);
                 } catch (initError) {
                     console.error(`❌ Failed to initialize ${this.currentProvider}:`, initError.message);
@@ -48,7 +64,7 @@ class AIChatbotManager {
                         // Force switch to original
                         if (this.providers.original) {
                             this.currentProvider = 'original';
-                            await this.providers.original.initialize();
+                            await this.createProviderInstance('original');
                             console.log('✅ Auto-switched to original chatbot due to API key error');
                         } else {
                             throw new Error('No fallback chatbot available');
@@ -212,8 +228,8 @@ class AIChatbotManager {
 
             console.log(`🔄 Switching from ${this.currentProvider} to ${providerName}...`);
             
-            // Initialize new provider
-            await this.providers[providerName].initialize();
+            // Create and initialize new provider instance
+            await this.createProviderInstance(providerName);
             
             this.currentProvider = providerName;
             
