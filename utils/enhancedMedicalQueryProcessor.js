@@ -3,66 +3,83 @@
 
 class EnhancedMedicalQueryProcessor {
     constructor() {
-        // Define medical content categories mapped to sheet headers
+        // Define medical content categories mapped to sheet headers - Enhanced precision
         this.contentCategories = {
             // Drug classification
             'phân loại': '1. PHÂN LOẠI DƯỢC LÝ',
             'classification': '1. PHÂN LOẠI DƯỢC LÝ',
             'nhóm thuốc': '1. PHÂN LOẠI DƯỢC LÝ',
             
-            // Dosage information
-            'liều': ['2.1. LIỀU THÔNG THƯỜNG TRẺ SƠ SINH', '2.2. LIỀU THÔNG THƯỜNG TRẺ EM'],
-            'dose': ['2.1. LIỀU THÔNG THƯỜNG TRẺ SƠ SINH', '2.2. LIỀU THÔNG THƯỜNG TRẺ EM'],
+            // Dosage information - General liều queries
             'liều dùng': ['2.1. LIỀU THÔNG THƯỜNG TRẺ SƠ SINH', '2.2. LIỀU THÔNG THƯỜNG TRẺ EM'],
             'liều lượng': ['2.1. LIỀU THÔNG THƯỜNG TRẺ SƠ SINH', '2.2. LIỀU THÔNG THƯỜNG TRẺ EM'],
+            'dose': ['2.1. LIỀU THÔNG THƯỜNG TRẺ SƠ SINH', '2.2. LIỀU THÔNG THƯỜNG TRẺ EM'],
+            
+            // Specific dosage by patient type
             'sơ sinh': '2.1. LIỀU THÔNG THƯỜNG TRẺ SƠ SINH',
             'trẻ em': '2.2. LIỀU THÔNG THƯỜNG TRẺ EM',
             'newborn': '2.1. LIỀU THÔNG THƯỜNG TRẺ SƠ SINH',
             'pediatric': '2.2. LIỀU THÔNG THƯỜNG TRẺ EM',
             
-            // Kidney/liver adjustments
-            'thận': '2.3. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG THẬN',
-            'kidney': '2.3. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG THẬN',
-            'renal': '2.3. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG THẬN',
-            'gan': '2.4. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG GAN',
-            'liver': '2.4. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG GAN',
-            'hepatic': '2.4. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG GAN',
+            // Kidney/liver adjustments - SPECIFIC keywords only
+            'hiệu chỉnh liều theo thận': '2.3. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG THẬN',
+            'hiệu chỉnh liều theo gan': '2.4. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG GAN',
+            'chức năng thận': '2.3. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG THẬN',
+            'chức năng gan': '2.4. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG GAN',
+            'kidney function': '2.3. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG THẬN',
+            'liver function': '2.4. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG GAN',
+            'renal adjustment': '2.3. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG THẬN',
+            'hepatic adjustment': '2.4. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG GAN',
+            'suy thận': '2.3. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG THẬN',
+            'suy gan': '2.4. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG GAN',
             
             // Contraindications (highest priority)
             'chống chỉ định': '3. CHỐNG CHỈ ĐỊNH',
             'contraindication': '3. CHỐNG CHỈ ĐỊNH',
+            'cấm dùng': '3. CHỐNG CHỈ ĐỊNH',
+            'không được dùng': '3. CHỐNG CHỈ ĐỊNH',
             'cấm': '3. CHỐNG CHỈ ĐỊNH',
-            'không được': '3. CHỐNG CHỈ ĐỊNH',
             'forbidden': '3. CHỐNG CHỈ ĐỊNH',
             
             // Side effects
             'tác dụng phụ': '4. TÁC DỤNG KHÔNG MONG MUỐN ĐIỂN HÌNH VÀ THẬN TRỌNG',
+            'tác dụng không mong muốn': '4. TÁC DỤNG KHÔNG MONG MUỐN ĐIỂN HÌNH VÀ THẬN TRỌNG',
             'side effect': '4. TÁC DỤNG KHÔNG MONG MUỐN ĐIỂN HÌNH VÀ THẬN TRỌNG',
-            'phản ứng': '4. TÁC DỤNG KHÔNG MONG MUỐN ĐIỂN HÌNH VÀ THẬN TRỌNG',
-            'adverse': '4. TÁC DỤNG KHÔNG MONG MUỐN ĐIỂN HÌNH VÀ THẬN TRỌNG',
+            'phản ứng bất lợi': '4. TÁC DỤNG KHÔNG MONG MUỐN ĐIỂN HÌNH VÀ THẬN TRỌNG',
+            'adverse effect': '4. TÁC DỤNG KHÔNG MONG MUỐN ĐIỂN HÌNH VÀ THẬN TRỌNG',
             'thận trọng': '4. TÁC DỤNG KHÔNG MONG MUỐN ĐIỂN HÌNH VÀ THẬN TRỌNG',
             
-            // Administration
-            'cách dùng': '5. CÁCH DÙNG (Ngoài đường tĩnh mạch)',
-            'administration': '5. CÁCH DÙNG (Ngoài đường tĩnh mạch)',
-            'how to use': '5. CÁCH DÙNG (Ngoài đường tĩnh mạch)',
+            // Administration - SPECIFIC to usage method
+            'cách dùng': '5. CÁCH DÙNG',
+            'cách sử dụng': '5. CÁCH DÙNG',
+            'administration': '5. CÁCH DÙNG',
+            'how to use': '5. CÁCH DÙNG',
+            'how to administer': '5. CÁCH DÙNG',
+            'pha thuốc': '5. CÁCH DÙNG',
+            'truyền tĩnh mạch': '5. CÁCH DÙNG',
+            'tiêm bắp': '5. CÁCH DÙNG',
             
-            // Drug interactions
-            'tương tác': '6. TƯƠNG TÁC THUỐC',
-            'interaction': '6. TƯƠNG TÁC THUỐC',
-            'phối hợp': '6. TƯƠNG TÁC THUỐC',
+            // Drug interactions - SPECIFIC keywords
+            'tương tác thuốc': '6. TƯƠNG TÁC THUỐC',
+            'drug interaction': '6. TƯƠNG TÁC THUỐC',
+            'phối hợp thuốc': '6. TƯƠNG TÁC THUỐC',
+            'kết hợp thuốc': '6. TƯƠNG TÁC THUỐC',
+            'tương kỵ': '6. TƯƠNG TÁC THUỐC',
             
             // Overdose
             'quá liều': '7. QUÁ LIỀU',
             'overdose': '7. QUÁ LIỀU',
+            'ngộ độc': '7. QUÁ LIỀU',
             'poisoning': '7. QUÁ LIỀU',
             
             // Monitoring
+            'theo dõi điều trị': '8. THEO DÕI ĐIỀU TRỊ',
             'theo dõi': '8. THEO DÕI ĐIỀU TRỊ',
             'monitoring': '8. THEO DÕI ĐIỀU TRỊ',
             'giám sát': '8. THEO DÕI ĐIỀU TRỊ',
             
             // Insurance
+            'bảo hiểm y tế': '9. BẢO HIỂM Y TẾ THANH TOÁN',
             'bảo hiểm': '9. BẢO HIỂM Y TẾ THANH TOÁN',
             'insurance': '9. BẢO HIỂM Y TẾ THANH TOÁN',
             'thanh toán': '9. BẢO HIỂM Y TẾ THANH TOÁN'
@@ -98,7 +115,7 @@ class EnhancedMedicalQueryProcessor {
         };
     }
 
-    // Step 1: Extract drug names and content keywords from query
+    // Step 1: Extract drug names and content keywords from query - Enhanced precision
     extractKeywords(query) {
         const normalizedQuery = query.toLowerCase();
         
@@ -115,24 +132,27 @@ class EnhancedMedicalQueryProcessor {
         });
         
         // If no drugs found via aliases, try to find potential drug names
-        // Look for words that might be drug names (typically longer than 4 chars and not common words)
         if (detectedDrugs.length === 0) {
             const words = normalizedQuery.split(/\s+/);
             const commonWords = ['liều', 'dùng', 'cho', 'trẻ', 'em', 'sơ', 'sinh', 'chống', 'chỉ', 'định', 
                                 'tác', 'dụng', 'phụ', 'cách', 'tương', 'tác', 'quá', 'theo', 'dõi', 'bảo', 'hiểm',
-                                'dose', 'for', 'children', 'newborn', 'contraindication', 'side', 'effect', 'how', 'to'];
+                                'dose', 'for', 'children', 'newborn', 'contraindication', 'side', 'effect', 'how', 'to',
+                                'hiệu', 'chỉnh', 'chức', 'năng', 'thận', 'gan', 'liver', 'kidney', 'function'];
             
             words.forEach(word => {
                 if (word.length > 4 && !commonWords.includes(word)) {
-                    // This might be a drug name
                     detectedDrugs.push(word);
                 }
             });
         }
         
-        // Extract content categories
+        // Extract content categories with enhanced precision
         const detectedCategories = [];
-        Object.keys(this.contentCategories).forEach(keyword => {
+        
+        // Priority matching - check more specific phrases first
+        const sortedCategories = Object.keys(this.contentCategories).sort((a, b) => b.length - a.length);
+        
+        sortedCategories.forEach(keyword => {
             if (normalizedQuery.includes(keyword)) {
                 const headers = this.contentCategories[keyword];
                 if (Array.isArray(headers)) {
@@ -140,8 +160,30 @@ class EnhancedMedicalQueryProcessor {
                 } else {
                     detectedCategories.push(headers);
                 }
+                
+                // Stop after first match to avoid conflicts
+                if (detectedCategories.length > 0) {
+                    return;
+                }
             }
         });
+        
+        // Fallback: if no specific category found, try partial matches
+        if (detectedCategories.length === 0) {
+            // Check for general "liều" but not specific adjustment types
+            if (normalizedQuery.includes('liều') && 
+                !normalizedQuery.includes('hiệu chỉnh') && 
+                !normalizedQuery.includes('chức năng') &&
+                !normalizedQuery.includes('thận') &&
+                !normalizedQuery.includes('gan')) {
+                detectedCategories.push('2.1. LIỀU THÔNG THƯỜNG TRẺ SƠ SINH', '2.2. LIỀU THÔNG THƯỜNG TRẺ EM');
+            }
+            
+            // Check for "tương tác" without "thuốc" suffix
+            if (normalizedQuery.includes('tương tác') && !detectedCategories.length) {
+                detectedCategories.push('6. TƯƠNG TÁC THUỐC');
+            }
+        }
         
         return {
             drugs: [...new Set(detectedDrugs)], // Remove duplicates
@@ -491,68 +533,300 @@ class EnhancedMedicalQueryProcessor {
         return context;
     }
 
-    // Smart content extraction based on specific context
+    // Smart content extraction based on specific context with HTML accordion support
     smartExtractContent(content, context, header) {
-        if (!context || Object.values(context).every(arr => arr.length === 0)) {
-            return null; // No specific context, return full content
-        }
+        if (!content || typeof content !== 'string') return null;
         
-        const contentLower = content.toLowerCase();
+        console.log(`🔍 Smart extracting from header: ${header}`);
+        console.log(`📄 Content length: ${content.length} chars`);
+        
+        // First parse HTML accordion structure if present
+        const accordionData = this.parseAccordionStructure(content);
+        
         let extractedParts = [];
         
-        // For dosage headers, look for specific conditions/severity
-        if (header.includes('LIỀU')) {
-            // Look for specific conditions
-            context.conditions.forEach(condition => {
-                const sentences = this.extractSentencesContaining(content, condition);
-                if (sentences.length > 0) {
-                    extractedParts.push(...sentences);
-                    console.log(`🎯 Found condition "${condition}":`, sentences);
-                }
-            });
+        // If we have accordion structure, use it smartly
+        if (accordionData.hasAccordion) {
+            console.log(`🎯 Found accordion structure with ${accordionData.mainPoints.length} main points`);
             
-            // Look for severity mentions
-            context.severity.forEach(severity => {
-                const sentences = this.extractSentencesContaining(content, severity);
-                if (sentences.length > 0) {
-                    extractedParts.push(...sentences);
-                    console.log(`⚡ Found severity "${severity}":`, sentences);
-                }
-            });
+            // Check if we need general info (no specific context) or specific info
+            const hasSpecificContext = context && Object.values(context).some(arr => arr.length > 0);
             
-            // Look for patient type specific info
-            context.patientType.forEach(type => {
-                const sentences = this.extractSentencesContaining(content, type);
-                if (sentences.length > 0) {
-                    extractedParts.push(...sentences);
-                    console.log(`👥 Found patient type "${type}":`, sentences);
+            if (!hasSpecificContext) {
+                // For general questions, start with main points
+                console.log(`📋 General query detected - listing main points first`);
+                extractedParts.push(`**Các ý chính:**`);
+                accordionData.mainPoints.forEach((point, index) => {
+                    extractedParts.push(`${index + 1}. ${point.title}`);
+                });
+                
+                // Add some key details
+                const keyDetails = this.findKeyAccordionDetails(accordionData);
+                if (keyDetails.length > 0) {
+                    extractedParts.push(`\n**Chi tiết quan trọng:**`);
+                    extractedParts.push(...keyDetails);
                 }
-            });
-        }
-        
-        // For contraindications, look for specific conditions
-        if (header.includes('CHỐNG CHỈ ĐỊNH')) {
-            context.conditions.forEach(condition => {
-                const sentences = this.extractSentencesContaining(content, condition);
-                if (sentences.length > 0) {
-                    extractedParts.push(...sentences);
-                    console.log(`🚨 Found contraindication condition "${condition}":`, sentences);
+            } else {
+                // For specific questions, find relevant accordion sections
+                console.log(`🎯 Specific query detected - finding relevant accordion sections`);
+                const relevantSections = this.findRelevantAccordionSections(accordionData, context);
+                
+                if (relevantSections.length > 0) {
+                    relevantSections.forEach(section => {
+                        extractedParts.push(`**${section.title}:**`);
+                        if (section.details) {
+                            extractedParts.push(section.details);
+                        }
+                    });
+                } else {
+                    // Fallback to traditional extraction within accordion
+                    extractedParts = this.extractFromAccordionWithContext(accordionData, context, header);
                 }
-            });
+            }
+        } else {
+            // No accordion structure, use traditional extraction
+            console.log(`📝 No accordion structure - using traditional extraction`);
             
-            context.patientType.forEach(type => {
-                const sentences = this.extractSentencesContaining(content, type);
-                if (sentences.length > 0) {
-                    extractedParts.push(...sentences);
-                    console.log(`🚨 Found contraindication patient type "${type}":`, sentences);
-                }
-            });
+            if (!context || Object.values(context).every(arr => arr.length === 0)) {
+                return null; // No specific context, return full content
+            }
+            
+            // For dosage headers, look for specific conditions/severity
+            if (header.includes('LIỀU')) {
+                // Look for specific conditions
+                context.conditions.forEach(condition => {
+                    const sentences = this.extractSentencesContaining(content, condition);
+                    if (sentences.length > 0) {
+                        extractedParts.push(...sentences);
+                        console.log(`🎯 Found condition "${condition}":`, sentences);
+                    }
+                });
+                
+                // Look for severity mentions
+                context.severity.forEach(severity => {
+                    const sentences = this.extractSentencesContaining(content, severity);
+                    if (sentences.length > 0) {
+                        extractedParts.push(...sentences);
+                        console.log(`⚡ Found severity "${severity}":`, sentences);
+                    }
+                });
+                
+                // Look for patient type specific info
+                context.patientType.forEach(type => {
+                    const sentences = this.extractSentencesContaining(content, type);
+                    if (sentences.length > 0) {
+                        extractedParts.push(...sentences);
+                        console.log(`👥 Found patient type "${type}":`, sentences);
+                    }
+                });
+            }
+            
+            // For contraindications, look for specific conditions
+            if (header.includes('CHỐNG CHỈ ĐỊNH')) {
+                context.conditions.forEach(condition => {
+                    const sentences = this.extractSentencesContaining(content, condition);
+                    if (sentences.length > 0) {
+                        extractedParts.push(...sentences);
+                        console.log(`🚨 Found contraindication condition "${condition}":`, sentences);
+                    }
+                });
+                
+                context.patientType.forEach(type => {
+                    const sentences = this.extractSentencesContaining(content, type);
+                    if (sentences.length > 0) {
+                        extractedParts.push(...sentences);
+                        console.log(`🚨 Found contraindication patient type "${type}":`, sentences);
+                    }
+                });
+            }
         }
         
         // Remove duplicates and return
         const uniqueParts = [...new Set(extractedParts)];
         console.log(`📝 Total extracted parts: ${uniqueParts.length}`);
-        return uniqueParts.length > 0 ? uniqueParts.join('. ') : null;
+        return uniqueParts.length > 0 ? uniqueParts.join('\n') : null;
+    }
+
+    // Parse HTML accordion structure
+    parseAccordionStructure(content) {
+        const result = {
+            hasAccordion: false,
+            mainPoints: [],
+            details: {}
+        };
+        
+        // Check if content contains accordion HTML tags or similar structures
+        if (!content.includes('accordion') && !content.includes('<details>') && 
+            !content.includes('<summary>') && !content.includes('data-toggle')) {
+            return result;
+        }
+        
+        result.hasAccordion = true;
+        
+        // Parse accordion sections - adjust patterns based on actual HTML structure
+        const accordionPatterns = [
+            // Pattern for accordion with summary/details
+            /<details[^>]*>[\s]*<summary[^>]*>(.*?)<\/summary>(.*?)<\/details>/gis,
+            // Pattern for Bootstrap accordion
+            /<div[^>]*data-toggle="collapse"[^>]*>(.*?)<\/div>[\s\S]*?<div[^>]*collapse[^>]*>(.*?)<\/div>/gis,
+            // Pattern for div-based accordion
+            /<div[^>]*accordion[^>]*>(.*?)<\/div>/gis,
+            // Pattern for custom accordion structure
+            /<accordion[^>]*title="([^"]*)"[^>]*>(.*?)<\/accordion>/gis
+        ];
+        
+        let matches = [];
+        accordionPatterns.forEach(pattern => {
+            const patternMatches = [...content.matchAll(pattern)];
+            matches.push(...patternMatches);
+        });
+        
+        if (matches.length > 0) {
+            matches.forEach((match, index) => {
+                const title = this.cleanHtmlText(match[1] || `Mục ${index + 1}`);
+                const details = this.cleanHtmlText(match[2] || '');
+                
+                result.mainPoints.push({
+                    title: title,
+                    index: index
+                });
+                
+                result.details[index] = details;
+            });
+        } else {
+            // Fallback: try to identify main points from structure
+            const listItems = content.match(/<li[^>]*>(.*?)<\/li>/gis);
+            if (listItems && listItems.length > 1) {
+                listItems.forEach((item, index) => {
+                    const cleanItem = this.cleanHtmlText(item);
+                    if (cleanItem.length > 10) {
+                        result.mainPoints.push({
+                            title: cleanItem,
+                            index: index
+                        });
+                    }
+                });
+            }
+        }
+        
+        return result;
+    }
+
+    // Clean HTML text
+    cleanHtmlText(htmlText) {
+        if (!htmlText) return '';
+        
+        return htmlText
+            .replace(/<[^>]*>/g, '') // Remove HTML tags
+            .replace(/&nbsp;/g, ' ') // Replace non-breaking spaces
+            .replace(/&amp;/g, '&') // Replace HTML entities
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/\s+/g, ' ') // Normalize whitespace
+            .trim();
+    }
+
+    // Find relevant accordion sections based on context
+    findRelevantAccordionSections(accordionData, context) {
+        const relevantSections = [];
+        
+        accordionData.mainPoints.forEach(point => {
+            const title = point.title.toLowerCase();
+            const details = accordionData.details[point.index] || '';
+            const detailsLower = details.toLowerCase();
+            
+            // Check if this section is relevant to the query context
+            let isRelevant = false;
+            
+            // Check conditions
+            if (context.conditions) {
+                context.conditions.forEach(condition => {
+                    if (title.includes(condition.toLowerCase()) || 
+                        detailsLower.includes(condition.toLowerCase())) {
+                        isRelevant = true;
+                    }
+                });
+            }
+            
+            // Check severity
+            if (context.severity) {
+                context.severity.forEach(severity => {
+                    if (title.includes(severity.toLowerCase()) || 
+                        detailsLower.includes(severity.toLowerCase())) {
+                        isRelevant = true;
+                    }
+                });
+            }
+            
+            // Check patient type
+            if (context.patientType) {
+                context.patientType.forEach(type => {
+                    if (title.includes(type.toLowerCase()) || 
+                        detailsLower.includes(type.toLowerCase())) {
+                        isRelevant = true;
+                    }
+                });
+            }
+            
+            if (isRelevant) {
+                relevantSections.push({
+                    title: point.title,
+                    details: details
+                });
+            }
+        });
+        
+        return relevantSections;
+    }
+
+    // Find key accordion details for general queries
+    findKeyAccordionDetails(accordionData) {
+        const keyDetails = [];
+        
+        // For general queries, show first few details
+        accordionData.mainPoints.slice(0, 3).forEach(point => {
+            const details = accordionData.details[point.index];
+            if (details && details.length > 20) {
+                // Truncate long details for overview
+                const truncated = details.length > 150 ? 
+                    details.substring(0, 150) + '...' : details;
+                keyDetails.push(`• ${point.title}: ${truncated}`);
+            }
+        });
+        
+        return keyDetails;
+    }
+
+    // Extract from accordion with specific context
+    extractFromAccordionWithContext(accordionData, context, header) {
+        const extractedParts = [];
+        
+        // Search within accordion details using traditional methods
+        accordionData.mainPoints.forEach(point => {
+            const details = accordionData.details[point.index] || '';
+            
+            if (header.includes('LIỀU') && context.conditions) {
+                context.conditions.forEach(condition => {
+                    const sentences = this.extractSentencesContaining(details, condition);
+                    if (sentences.length > 0) {
+                        extractedParts.push(`**${point.title}:** ${sentences.join('. ')}`);
+                    }
+                });
+            }
+            
+            if (header.includes('CHỐNG CHỈ ĐỊNH') && context.patientType) {
+                context.patientType.forEach(type => {
+                    const sentences = this.extractSentencesContaining(details, type);
+                    if (sentences.length > 0) {
+                        extractedParts.push(`**${point.title}:** ${sentences.join('. ')}`);
+                    }
+                });
+            }
+        });
+        
+        return extractedParts;
     }
 
     // Enhanced sentence extraction with better parsing
@@ -651,7 +925,7 @@ class EnhancedMedicalQueryProcessor {
         }
     }
 
-    // Create specialized medical analysis prompt
+    // Create specialized medical analysis prompt with accordion awareness
     createMedicalAnalysisPrompt(analysisData) {
         const { originalQuery, drugName, category, extractedContent, specificContext } = analysisData;
         
@@ -670,6 +944,23 @@ class EnhancedMedicalQueryProcessor {
             contextInfo = contexts.join(' | ');
         }
 
+        // Check if extracted content has structured format (main points + details)
+        const hasStructuredContent = extractedContent && (
+            extractedContent.includes('**Các ý chính:**') || 
+            extractedContent.includes('**Chi tiết:**') ||
+            extractedContent.includes('**') // Any structured formatting
+        );
+
+        let analysisInstruction = '';
+        if (hasStructuredContent) {
+            analysisInstruction = `
+**Hướng dẫn phân tích nội dung có cấu trúc:**
+- Nếu có "Các ý chính": trả lời ngắn gọn dựa trên các ý chính trước
+- Nếu có "Chi tiết": bổ sung thông tin chi tiết cần thiết 
+- Nếu câu hỏi chung: tóm tắt các ý chính
+- Nếu câu hỏi cụ thể: tập trung vào chi tiết liên quan`;
+        }
+
         return `Bạn là chuyên gia dược lâm sàng. Phân tích và trả lời câu hỏi y khoa sau dựa trên dữ liệu đã được trích xuất chính xác:
 
 **Câu hỏi:** ${originalQuery}
@@ -678,79 +969,72 @@ class EnhancedMedicalQueryProcessor {
 - Thuốc: ${drugName}
 - Danh mục: ${category}
 - Nội dung cụ thể: ${extractedContent}
-- Bối cảnh: ${contextInfo || 'Không có bối cảnh cụ thể'}
+- Bối cảnh: ${contextInfo || 'Không có bối cảnh cụ thể'}${analysisInstruction}
 
 **Yêu cầu:**
 1. Trả lời trực tiếp và chính xác câu hỏi
 2. Sử dụng CHÍNH XÁC thông tin đã trích xuất, không thêm thông tin bên ngoài
-3. Nếu là liều dùng: nêu rõ liều, tần suất, đường dùng
-4. Nếu là chống chỉ định: giải thích nguy cơ
-5. Thêm lưu ý an toàn nếu cần thiết
-6. Trả lời bằng tiếng Việt, ngắn gọn (tối đa 150 từ)
+3. Nếu nội dung có cấu trúc (ý chính + chi tiết): ưu tiên ý chính trước, chi tiết sau
+4. Nếu là liều dùng: nêu rõ liều, tần suất, đường dùng
+5. Nếu là chống chỉ định: giải thích nguy cơ
+6. Thêm lưu ý an toàn nếu cần thiết
+7. Trả lời bằng tiếng Việt, ngắn gọn (tối đa 150 từ)
 
 **Trả lời chuyên nghiệp:**`;
     }
 
-    // Combine structured data with AI analysis
+    // Combine structured data with AI analysis - Enhanced for concise responses
     combineStructuredAndAIResponse(step5Result, aiAnalysis, analysisData) {
         let enhancedMessage = step5Result.message;
         
+        // Check if we have accordion-structured content
+        const hasAccordionStructure = step5Result.extractedContent && (
+            step5Result.extractedContent.includes('**Các ý chính:**') ||
+            step5Result.extractedContent.includes('**Chi tiết:**')
+        );
+        
         if (aiAnalysis && aiAnalysis.trim().length > 0) {
-            // AI analysis available - use it as primary response
-            enhancedMessage = `🤖 **Phân tích chuyên sâu:**\n\n${aiAnalysis.trim()}\n\n---\n\n📋 **Dữ liệu gốc:**\n${step5Result.extractedContent || step5Result.rawContent}`;
+            // AI analysis available - use ONLY AI response for conciseness
+            enhancedMessage = aiAnalysis.trim();
         } else {
-            // No AI analysis - enhance structured response
-            enhancedMessage = this.createEnhancedStructuredResponse(step5Result, analysisData);
+            // No AI analysis - create concise structured response
+            enhancedMessage = this.createConciseStructuredResponse(step5Result, analysisData);
         }
 
         return {
             ...step5Result,
             message: enhancedMessage,
             aiEnhanced: !!aiAnalysis,
-            analysisMethod: aiAnalysis ? 'AI + Structured' : 'Enhanced Structured',
+            analysisMethod: aiAnalysis ? 'AI Enhanced' : 'Structured',
+            accordionStructure: hasAccordionStructure,
             step6Applied: true
         };
     }
 
-    // Create enhanced structured response without AI
-    createEnhancedStructuredResponse(step5Result, analysisData) {
-        const { drugName, category, specificContext, extractedContent } = analysisData;
+    // Create concise structured response without AI
+    createConciseStructuredResponse(step5Result, analysisData) {
+        const { drugName, category, extractedContent } = analysisData;
         
-        let response = `💊 **${drugName}** - Thông tin chuyên sâu\n\n`;
+        // For concise response, just return the essential information
+        let response = `**${drugName} - ${category.replace(/^\d+\.\s*/, '')}:**\n\n`;
         
-        // Add context if available
-        if (specificContext && Object.values(specificContext).some(arr => arr.length > 0)) {
-            response += `🎯 **Bối cảnh cụ thể:**\n`;
-            if (specificContext.conditions.length > 0) {
-                response += `• Tình trạng: ${specificContext.conditions.join(', ')}\n`;
+        // Clean and format the extracted content
+        if (extractedContent) {
+            // If content has structured format, keep it clean
+            if (extractedContent.includes('**Các ý chính:**')) {
+                // Extract just the main points
+                const mainPointsMatch = extractedContent.match(/\*\*Các ý chính:\*\*([\s\S]*?)(?:\*\*|$)/);
+                if (mainPointsMatch) {
+                    response += mainPointsMatch[1].trim();
+                }
+            } else {
+                // Regular content - just clean format
+                response += extractedContent;
             }
-            if (specificContext.patientType.length > 0) {
-                response += `• Đối tượng: ${specificContext.patientType.join(', ')}\n`;
-            }
-            if (specificContext.severity.length > 0) {
-                response += `• Mức độ: ${specificContext.severity.join(', ')}\n`;
-            }
-            response += `\n`;
-        }
-
-        // Add extracted content with smart formatting
-        response += `📋 **${category}:**\n`;
-        if (extractedContent && extractedContent !== step5Result.rawContent) {
-            response += `${extractedContent}\n\n`;
-            response += `📖 **Chi tiết đầy đủ:** ${step5Result.rawContent}`;
         } else {
-            response += `${step5Result.rawContent}`;
-        }
-
-        // Add safety warnings based on category
-        if (category.includes('LIỀU')) {
-            response += `\n\n⚠️ **Quan trọng:** Liều dùng cần được bác sĩ điều chỉnh theo tình trạng cụ thể của bệnh nhân.`;
+            response += step5Result.rawContent || 'Thông tin không có sẵn.';
         }
         
-        if (category.includes('CHỐNG CHỈ ĐỊNH')) {
-            response += `\n\n🚨 **Cảnh báo:** Các chống chỉ định phải được tuân thủ nghiêm ngặt để đảm bảo an toàn bệnh nhân.`;
-        }
-
         return response;
     }
 
@@ -779,19 +1063,7 @@ class EnhancedMedicalQueryProcessor {
                 cleanContent = `${contextInfo.join('\n')}\n\n📋 **Thông tin chi tiết:**\n${cleanContent}`;
             }
         }
-        
-        if (header.includes('CHỐNG CHỈ ĐỊNH')) {
-            return cleanContent;
-        }
-        
-        if (header.includes('LIỀU')) {
-            return cleanContent;
-        }
-        
-        if (header.includes('TÁC DỤNG KHÔNG MONG MUỐN')) {
-            return `${cleanContent}\n\n⚠️ **Nếu gặp bất kỳ triệu chứng nào, hãy ngưng thuốc và tham khảo ý kiến bác sĩ ngay lập tức.**`;
-        }
-        
+
         return cleanContent;
     }
 

@@ -7,7 +7,7 @@ async function loadRealSheetsStructure() {
     // This simulates the exact structure of your pedmedvnch Google Sheet
     const realSheetsData = [
         // Headers - Exact from your Google Sheet
-        ['HOẠT CHẤT', 'CẬP NHẬT', '1. PHÂN LOẠI DƯỢC LÝ', '2.1. LIỀU THÔNG THƯỜNG TRẺ SƠ SINH', '2.2. LIỀU THÔNG THƯỜNG TRẺ EM', '2.3. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG THẬN', '2.4. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG GAN', '3. CHỐNG CHỈ ĐỊNH', '4. TÁC DỤNG KHÔNG MONG MUỐN ĐIỂN HÌNH VÀ THẬN TRỌNG', '5. CÁCH DÙNG (Ngoài đường tĩnh mạch)', '6. TƯƠNG TÁC THUỐC', '7. QUÁ LIỀU', '8. THEO DÕI ĐIỀU TRỊ', '9. BẢO HIỂM Y TẾ THANH TOÁN'],
+        ['HOẠT CHẤT', 'CẬP NHẬT', '1. PHÂN LOẠI DƯỢC LÝ', '2.1. LIỀU THÔNG THƯỜNG TRẺ SƠ SINH', '2.2. LIỀU THÔNG THƯỜNG TRẺ EM', '2.3. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG THẬN', '2.4. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG GAN', '3. CHỐNG CHỈ ĐỊNH', '4. TÁC DỤNG KHÔNG MONG MUỐN ĐIỂN HÌNH VÀ THẬN TRỌNG', '5. CÁCH DÙNG', '6. TƯƠNG TÁC THUỐC', '7. QUÁ LIỀU', '8. THEO DÕI ĐIỀU TRỊ', '9. BẢO HIỂM Y TẾ THANH TOÁN'],
         
         // Meropenem - Real data from your sheets
         [
