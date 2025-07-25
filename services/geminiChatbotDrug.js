@@ -15,6 +15,7 @@ class GeminiChatbotService {
         if (this.geminiApiKey) {
             this.genAI = new GoogleGenerativeAI(this.geminiApiKey);
             this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Miễn phí
+            console.log('✅ Gemini AI initialized with API key found:', this.geminiApiKey ? 'Yes' : 'No');
         } else {
             console.warn('⚠️ Gemini API key not found. Set GEMINI_API_KEY in environment variables.');
         }

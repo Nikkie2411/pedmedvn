@@ -16,6 +16,18 @@ class AIChatbotManager {
         try {
             console.log('🚀 Initializing AI Chatbot Manager...');
             
+            // Debug environment variables
+            console.log('🔍 Checking environment variables...');
+            const envKeys = ['GEMINI_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY'];
+            envKeys.forEach(key => {
+                const value = process.env[key];
+                if (value) {
+                    console.log(`✅ ${key}: ${value.substring(0, 10)}...`);
+                } else {
+                    console.log(`❌ ${key}: not found`);
+                }
+            });
+            
             // Load available providers
             await this.loadProviders();
             
@@ -115,8 +127,20 @@ class AIChatbotManager {
     // Switch AI provider
     async switchProvider(providerName) {
         try {
+            console.log(`🔍 Checking if provider ${providerName} is available...`);
+            
             if (!this.providers[providerName]) {
+                console.error(`❌ Provider ${providerName} not loaded in providers list`);
+                console.log('📋 Available providers:', Object.keys(this.providers));
                 throw new Error(`Provider ${providerName} not available`);
+            }
+
+            // Check if provider is actually ready
+            const providerStatus = this.getProviderStatus(providerName);
+            console.log(`📊 Provider ${providerName} status:`, providerStatus);
+            
+            if (providerStatus !== 'ready') {
+                throw new Error(`Provider ${providerName} is not ready. Status: ${providerStatus}`);
             }
 
             console.log(`🔄 Switching from ${this.currentProvider} to ${providerName}...`);
@@ -144,6 +168,50 @@ class AIChatbotManager {
                 message: `Không thể chuyển sang ${providerName}: ${error.message}`,
                 currentProvider: this.currentProvider
             };
+        }
+    }
+
+    // Get status of a specific provider
+    getProviderStatus(providerName) {
+        const provider = this.providers[providerName];
+        if (!provider) {
+            return 'not_available';
+        }
+        
+        switch(providerName) {
+            case 'gemini':
+                // Check if Gemini has any API key (env or fallback)
+                if (provider.geminiApiKey) {
+                    console.log('✅ Gemini provider has API key');
+                    return 'ready';
+                } else {
+                    console.log('⚠️ Gemini provider has no API key');
+                    return 'needs_api_key';
+                }
+                
+            case 'openai':
+                // Check if OpenAI API key exists
+                if (!process.env.OPENAI_API_KEY) {
+                    console.log('⚠️ OPENAI_API_KEY not found in environment');
+                    return 'needs_api_key';
+                }
+                return 'ready';
+                
+            case 'groq':
+                // Check if Groq has any API key (env or fallback)
+                if (provider.groqApiKey) {
+                    console.log('✅ Groq provider has API key');
+                    return 'ready';
+                } else {
+                    console.log('⚠️ Groq provider has no API key');
+                    return 'needs_api_key';
+                }
+                
+            case 'original':
+                return 'ready';
+                
+            default:
+                return 'unknown';
         }
     }
 
@@ -206,31 +274,36 @@ class AIChatbotManager {
         
         Object.keys(this.providers).forEach(key => {
             const provider = this.providers[key];
-            let status = 'available';
             let description = '';
+            let displayName = '';
             
             switch(key) {
                 case 'gemini':
-                    description = 'Google Gemini AI - MIỄN PHÍ, tốt cho tiếng Việt';
-                    status = provider && process.env.GEMINI_API_KEY ? 'ready' : 'needs_api_key';
+                    displayName = 'Google Gemini AI';
+                    description = 'AI miễn phí từ Google với 50 requests/day - tốt cho tiếng Việt';
                     break;
                 case 'openai':
-                    description = 'OpenAI GPT - Có free tier, chất lượng cao';
-                    status = provider && process.env.OPENAI_API_KEY ? 'ready' : 'needs_api_key';
+                    displayName = 'OpenAI GPT';
+                    description = 'AI chất lượng cao với $5 free credit';
                     break;
                 case 'groq':
-                    description = 'Groq AI - MIỄN PHÍ, siêu nhanh';
-                    status = provider && process.env.GROQ_API_KEY ? 'ready' : 'needs_api_key';
+                    displayName = 'Groq AI';
+                    description = 'AI siêu nhanh với 14,400 requests/day MIỄN PHÍ';
                     break;
                 case 'original':
-                    description = 'Chatbot gốc - Không cần API key';
-                    status = provider ? 'ready' : 'not_available';
+                    displayName = 'Original Chatbot';
+                    description = 'Chatbot gốc sử dụng documents cục bộ';
                     break;
+                default:
+                    displayName = key.toUpperCase();
+                    description = `AI Provider: ${key}`;
             }
+            
+            const status = this.getProviderStatus(key);
             
             providers.push({
                 name: key,
-                displayName: key.toUpperCase(),
+                displayName,
                 description,
                 status,
                 isActive: key === this.currentProvider
