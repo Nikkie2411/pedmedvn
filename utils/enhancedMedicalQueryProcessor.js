@@ -268,15 +268,20 @@ class EnhancedMedicalQueryProcessor {
         return matrix[str2.length][str1.length];
     }
 
-    // Step 3: Match content requirements with headers
-    matchContentHeaders(contentCategories, availableHeaders) {
+    // Step 3: Enhanced content header matching with context awareness
+    matchContentHeaders(contentCategories, availableHeaders, originalQuery = '') {
         const matchedHeaders = [];
         
         contentCategories.forEach(category => {
             if (availableHeaders.includes(category)) {
+                // Calculate context-aware confidence
+                let confidence = 100;
+                const contextScore = this.calculateHeaderContextScore(category, originalQuery);
+                confidence += contextScore;
+                
                 matchedHeaders.push({
                     header: category,
-                    confidence: 100
+                    confidence: Math.min(confidence, 150) // Cap at 150
                 });
             }
         });
@@ -287,16 +292,72 @@ class EnhancedMedicalQueryProcessor {
                 availableHeaders.forEach(header => {
                     if (header.toLowerCase().includes(category.toLowerCase()) || 
                         category.toLowerCase().includes(header.toLowerCase())) {
+                        
+                        let confidence = 70;
+                        const contextScore = this.calculateHeaderContextScore(header, originalQuery);
+                        confidence += contextScore;
+                        
                         matchedHeaders.push({
                             header: header,
-                            confidence: 70
+                            confidence: Math.min(confidence, 120) // Cap at 120
                         });
                     }
                 });
             });
         }
         
-        return matchedHeaders;
+        // Sort by confidence (highest first)
+        return matchedHeaders.sort((a, b) => b.confidence - a.confidence);
+    }
+
+    // Calculate context score for header selection
+    calculateHeaderContextScore(header, query) {
+        if (!query) return 0;
+        
+        const queryLower = query.toLowerCase();
+        const headerLower = header.toLowerCase();
+        let score = 0;
+        
+        // Patient type matching
+        if (headerLower.includes('trẻ em') && queryLower.includes('trẻ em')) {
+            score += 30;
+        }
+        if (headerLower.includes('sơ sinh') && queryLower.includes('sơ sinh')) {
+            score += 30;
+        }
+        if (headerLower.includes('adult') && queryLower.includes('adult')) {
+            score += 30;
+        }
+        
+        // Condition-specific matching
+        if (queryLower.includes('viêm màng não') || queryLower.includes('meningitis')) {
+            // For meningitis, prefer pediatric dosing which usually has higher doses
+            if (headerLower.includes('trẻ em')) {
+                score += 20;
+            }
+        }
+        
+        if (queryLower.includes('nhiễm trùng nặng') || queryLower.includes('severe infection')) {
+            if (headerLower.includes('trẻ em')) {
+                score += 15;
+            }
+        }
+        
+        // Age-specific prioritization
+        if (queryLower.includes('dưới') || queryLower.includes('<') || queryLower.includes('nhỏ hơn')) {
+            if (headerLower.includes('sơ sinh')) {
+                score += 25;
+            }
+        }
+        
+        // Contraindication specific
+        if (queryLower.includes('chống chỉ định') || queryLower.includes('contraindic')) {
+            if (headerLower.includes('chống chỉ định')) {
+                score += 40;
+            }
+        }
+        
+        return score;
     }
 
     // Step 4: Extract intersection data (cell content)
@@ -317,7 +378,7 @@ class EnhancedMedicalQueryProcessor {
         };
     }
 
-    // Step 5: Analyze and format cell content for precise answer
+    // Step 5: Enhanced Smart Content Extraction
     analyzeAndFormatResponse(cellData, originalQuery) {
         const { drugName, header, content, drugConfidence, headerConfidence } = cellData;
         
@@ -329,8 +390,16 @@ class EnhancedMedicalQueryProcessor {
             };
         }
 
-        // Format content based on header type
-        let formattedContent = this.formatContentByType(header, content);
+        // Step 5.1: Extract specific context from query
+        const specificContext = this.extractSpecificContext(originalQuery);
+        console.log(`🎯 Step 5.1 - Specific context:`, specificContext);
+        
+        // Step 5.2: Smart content extraction based on context
+        let extractedContent = this.smartExtractContent(content, specificContext, header);
+        console.log(`🧠 Step 5.2 - Smart extraction result:`, extractedContent ? 'Found specific info' : 'Using full content');
+        
+        // Step 5.3: Format content based on header type
+        let formattedContent = this.formatContentByType(header, extractedContent || content, specificContext);
         
         // Add safety warnings for contraindications
         if (header.includes('CHỐNG CHỈ ĐỊNH')) {
@@ -349,14 +418,215 @@ class EnhancedMedicalQueryProcessor {
             category: header,
             confidence: Math.min(drugConfidence, headerConfidence),
             rawContent: content,
+            extractedContent: extractedContent,
+            specificContext: specificContext,
             lastUpdated: cellData.lastUpdated
         };
     }
 
-    // Format content based on medical category
-    formatContentByType(header, content) {
+    // Extract specific medical context from query
+    extractSpecificContext(query) {
+        const context = {
+            conditions: [],
+            severity: [],
+            patientType: [],
+            administration: [],
+            other: []
+        };
+        
+        const queryLower = query.toLowerCase();
+        
+        // Medical conditions
+        const conditions = [
+            'viêm màng não', 'meningitis', 'nhiễm trùng máu', 'sepsis', 'bacteremia',
+            'viêm phổi', 'pneumonia', 'viêm đường tiết niệu', 'uti', 'viêm da',
+            'cellulitis', 'viêm xương khớp', 'osteomyelitis', 'viêm nội tâm mạc',
+            'endocarditis', 'viêm phúc mạc', 'peritonitis', 'viêm ruột thừa',
+            'appendicitis', 'viêm túi mật', 'cholangitis', 'abcess', 'áp xe'
+        ];
+        
+        conditions.forEach(condition => {
+            if (queryLower.includes(condition)) {
+                context.conditions.push(condition);
+            }
+        });
+        
+        // Severity levels
+        const severityLevels = [
+            'nặng', 'severe', 'nghiêm trọng', 'critical', 'nguy kịch',
+            'nhẹ', 'mild', 'vừa', 'moderate', 'trung bình'
+        ];
+        
+        severityLevels.forEach(severity => {
+            if (queryLower.includes(severity)) {
+                context.severity.push(severity);
+            }
+        });
+        
+        // Patient types
+        const patientTypes = [
+            'trẻ sơ sinh', 'newborn', 'neonatal', 'trẻ em', 'pediatric', 'children',
+            'người lớn', 'adult', 'elderly', 'cao tuổi', 'thai phụ', 'pregnant',
+            'cho con bú', 'lactating', 'breastfeeding'
+        ];
+        
+        patientTypes.forEach(type => {
+            if (queryLower.includes(type)) {
+                context.patientType.push(type);
+            }
+        });
+        
+        // Administration routes
+        const routes = [
+            'tĩnh mạch', 'iv', 'intravenous', 'uống', 'oral', 'po',
+            'tiêm bắp', 'im', 'intramuscular', 'bôi', 'topical'
+        ];
+        
+        routes.forEach(route => {
+            if (queryLower.includes(route)) {
+                context.administration.push(route);
+            }
+        });
+        
+        return context;
+    }
+
+    // Smart content extraction based on specific context
+    smartExtractContent(content, context, header) {
+        if (!context || Object.values(context).every(arr => arr.length === 0)) {
+            return null; // No specific context, return full content
+        }
+        
+        const contentLower = content.toLowerCase();
+        let extractedParts = [];
+        
+        // For dosage headers, look for specific conditions/severity
+        if (header.includes('LIỀU')) {
+            // Look for specific conditions
+            context.conditions.forEach(condition => {
+                const sentences = this.extractSentencesContaining(content, condition);
+                if (sentences.length > 0) {
+                    extractedParts.push(...sentences);
+                    console.log(`🎯 Found condition "${condition}":`, sentences);
+                }
+            });
+            
+            // Look for severity mentions
+            context.severity.forEach(severity => {
+                const sentences = this.extractSentencesContaining(content, severity);
+                if (sentences.length > 0) {
+                    extractedParts.push(...sentences);
+                    console.log(`⚡ Found severity "${severity}":`, sentences);
+                }
+            });
+            
+            // Look for patient type specific info
+            context.patientType.forEach(type => {
+                const sentences = this.extractSentencesContaining(content, type);
+                if (sentences.length > 0) {
+                    extractedParts.push(...sentences);
+                    console.log(`👥 Found patient type "${type}":`, sentences);
+                }
+            });
+        }
+        
+        // For contraindications, look for specific conditions
+        if (header.includes('CHỐNG CHỈ ĐỊNH')) {
+            context.conditions.forEach(condition => {
+                const sentences = this.extractSentencesContaining(content, condition);
+                if (sentences.length > 0) {
+                    extractedParts.push(...sentences);
+                    console.log(`🚨 Found contraindication condition "${condition}":`, sentences);
+                }
+            });
+            
+            context.patientType.forEach(type => {
+                const sentences = this.extractSentencesContaining(content, type);
+                if (sentences.length > 0) {
+                    extractedParts.push(...sentences);
+                    console.log(`🚨 Found contraindication patient type "${type}":`, sentences);
+                }
+            });
+        }
+        
+        // Remove duplicates and return
+        const uniqueParts = [...new Set(extractedParts)];
+        console.log(`📝 Total extracted parts: ${uniqueParts.length}`);
+        return uniqueParts.length > 0 ? uniqueParts.join('. ') : null;
+    }
+
+    // Enhanced sentence extraction with better parsing
+    extractSentencesContaining(content, keyword) {
+        // Split by multiple delimiters including periods, semicolons, line breaks, and colons
+        const sentences = content.split(/[.!?;:\n]/).filter(s => s.trim().length > 5);
+        const keywordLower = keyword.toLowerCase();
+        
+        const matchingSentences = sentences.filter(sentence => {
+            const sentenceLower = sentence.toLowerCase();
+            return sentenceLower.includes(keywordLower);
+        }).map(s => s.trim());
+        
+        // Also search for phrases/clauses separated by commas or slashes
+        const phrases = content.split(/[,/]/).filter(p => p.trim().length > 5);
+        const matchingPhrases = phrases.filter(phrase => {
+            const phraseLower = phrase.toLowerCase();
+            return phraseLower.includes(keywordLower);
+        }).map(p => p.trim());
+        
+        // Combine both
+        matchingSentences.push(...matchingPhrases);
+        
+        // Also try to extract dosage ranges that mention the keyword
+        if (keyword.includes('sơ sinh') || keyword.includes('newborn')) {
+            const dosagePatterns = content.match(/[^.!?;:]*(?:sơ sinh|newborn)[^.!?;:]*/gi);
+            if (dosagePatterns) {
+                matchingSentences.push(...dosagePatterns.map(p => p.trim()));
+            }
+        }
+        
+        if (keyword.includes('nặng') || keyword.includes('severe')) {
+            const severityPatterns = content.match(/[^.!?;:,]*(?:nặng|severe|nghiêm trọng)[^.!?;:,]*/gi);
+            if (severityPatterns) {
+                matchingSentences.push(...severityPatterns.map(p => p.trim()));
+            }
+        }
+        
+        if (keyword.includes('viêm màng não') || keyword.includes('meningitis')) {
+            const meningitisPatterns = content.match(/[^.!?;:,]*(?:viêm màng não|meningitis)[^.!?;:,]*/gi);
+            if (meningitisPatterns) {
+                matchingSentences.push(...meningitisPatterns.map(p => p.trim()));
+            }
+        }
+        
+        // Remove duplicates and empty strings
+        return [...new Set(matchingSentences)].filter(s => s.length > 0);
+    }
+
+    // Format content based on medical category and specific context
+    formatContentByType(header, content, specificContext = null) {
         // Remove HTML tags for now, can be enhanced later
         let cleanContent = content.replace(/<[^>]*>/g, '');
+        
+        // If we have specific context, add contextual formatting
+        if (specificContext && Object.values(specificContext).some(arr => arr.length > 0)) {
+            const contextInfo = [];
+            
+            if (specificContext.conditions.length > 0) {
+                contextInfo.push(`🎯 **Điều kiện cụ thể:** ${specificContext.conditions.join(', ')}`);
+            }
+            
+            if (specificContext.severity.length > 0) {
+                contextInfo.push(`⚡ **Mức độ:** ${specificContext.severity.join(', ')}`);
+            }
+            
+            if (specificContext.patientType.length > 0) {
+                contextInfo.push(`👥 **Đối tượng:** ${specificContext.patientType.join(', ')}`);
+            }
+            
+            if (contextInfo.length > 0) {
+                cleanContent = `${contextInfo.join('\n')}\n\n📋 **Thông tin chi tiết:**\n${cleanContent}`;
+            }
+        }
         
         if (header.includes('CHỐNG CHỈ ĐỊNH')) {
             return cleanContent;
@@ -410,9 +680,9 @@ class EnhancedMedicalQueryProcessor {
                 };
             }
             
-            // Step 3: Match content headers
+            // Step 3: Match content headers with context awareness
             const availableHeaders = Object.keys(drugData[0]?.originalData || drugData[0]?.rawData || {});
-            const matchedHeaders = this.matchContentHeaders(keywords.categories, availableHeaders);
+            const matchedHeaders = this.matchContentHeaders(keywords.categories, availableHeaders, query);
             console.log(`📋 Step 3 - Matched headers:`, matchedHeaders.length);
             
             if (matchedHeaders.length === 0) {
