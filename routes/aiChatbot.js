@@ -97,16 +97,25 @@ router.get('/providers', async (req, res) => {
 // Switch AI provider
 router.post('/switch-provider', async (req, res) => {
     try {
+        console.log('🔄 Switch provider request received');
+        console.log('📦 Request body:', req.body);
+        
         const { provider } = req.body;
         
         if (!provider) {
+            console.log('❌ No provider specified in request');
             return res.status(400).json({
                 success: false,
                 message: 'Vui lòng chỉ định provider (gemini, openai, groq, original)'
             });
         }
         
+        console.log(`🔍 Attempting to switch to provider: ${provider}`);
+        console.log('📊 Manager initialized:', aiChatbotManager.isInitialized);
+        console.log('📋 Available providers:', Object.keys(aiChatbotManager.providers || {}));
+        
         const result = await aiChatbotManager.switchProvider(provider);
+        console.log('📦 Switch result:', result);
         
         if (result.success) {
             res.json({
@@ -114,6 +123,7 @@ router.post('/switch-provider', async (req, res) => {
                 data: result
             });
         } else {
+            console.log('❌ Switch failed:', result.message);
             res.status(400).json({
                 success: false,
                 message: result.message
@@ -288,6 +298,45 @@ router.post('/test-provider', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Lỗi khi test AI provider',
+            error: error.message
+        });
+    }
+});
+
+// Debug endpoint to check environment and providers
+router.get('/debug', async (req, res) => {
+    try {
+        const envInfo = {
+            GEMINI_API_KEY: process.env.GEMINI_API_KEY ? 'Set' : 'Missing',
+            GROQ_API_KEY: process.env.GROQ_API_KEY ? 'Set' : 'Missing',
+            OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'Set' : 'Missing',
+        };
+        
+        const managerInfo = {
+            isInitialized: aiChatbotManager.isInitialized,
+            currentProvider: aiChatbotManager.currentProvider,
+            availableProviders: Object.keys(aiChatbotManager.providers || {}),
+        };
+        
+        const providerStatuses = {};
+        if (aiChatbotManager.providers) {
+            for (const providerName of Object.keys(aiChatbotManager.providers)) {
+                providerStatuses[providerName] = aiChatbotManager.getProviderStatus(providerName);
+            }
+        }
+        
+        res.json({
+            success: true,
+            data: {
+                environment: envInfo,
+                manager: managerInfo,
+                providerStatuses: providerStatuses,
+                timestamp: new Date().toISOString()
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
             error: error.message
         });
     }
