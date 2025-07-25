@@ -1,5 +1,4 @@
-const { google    // Headers - Exact structure from pedmedvnch sheet
-    ['HOẠT CHẤT', 'CẬP NHẬT', '1. PHÂN LOẠI DƯỢC LÝ', '2.1. LIỀU THÔNG THƯỜNG TRẺ SƠ SINH', '2.2. LIỀU THÔNG THƯỜNG TRẺ EM', '2.3. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG THẬN', '2.4. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG GAN', '3. CHỐNG CHỈ ĐỊNH', '4. TÁC DỤNG KHÔNG MONG MUỐN ĐIỂN HÌNH VÀ THẬN TRỌNG', '5. CÁCH DÙNG', '6. TƯƠNG TÁC THUỐC', '7. QUÁ LIỀU', '8. THEO DÕI ĐIỀU TRỊ', '9. BẢO HIỂM Y TẾ THANH TOÁN'], = require('googleapis');
+const { google } = require('googleapis');
 const logger = require('../utils/logger');
 const { SPREADSHEET_ID } = require('../config/config');
 const NodeCache = require('node-cache');
