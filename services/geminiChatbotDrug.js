@@ -133,7 +133,11 @@ class GeminiChatbotService {
         const medicalTerms = [
             'thuốc', 'medication', 'medicine', 'drug', 'treatment', 'liều', 'dose', 'dosage',
             'tác dụng', 'effect', 'side effect', 'phản ứng', 'chống chỉ định', 'contraindication',
-            'uống', 'take', 'sử dụng', 'use', 'cách dùng', 'how to use', 'bảo quản', 'storage'
+            'uống', 'take', 'sử dụng', 'use', 'cách dùng', 'how to use', 'bảo quản', 'storage',
+            // Bổ sung thêm từ khóa từ headers mới
+            'sơ sinh', 'trẻ em', 'thận', 'gan', 'quá liều', 'theo dõi', 'bảo hiểm', 'y tế',
+            'tương tác', 'cách dùng', 'điều trị', 'thanh toán', 'chức năng', 'hiệu chỉnh',
+            'mong muốn', 'thận trọng', 'không mong muốn', 'thông thường'
         ];
 
         const hasMedicalTerms = medicalTerms.some(term => queryLower.includes(term));

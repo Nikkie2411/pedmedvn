@@ -15,13 +15,6 @@ async function loadDrugData(sheetName = null) {
   // Try multiple common sheet names if none specified
   const sheetNames = sheetName ? [sheetName] : [
     'pedmedvnch',     // Tên sheet thực tế
-    'PedMed2025',     // Tên từ logs trước đó
-    'Sheet1',         // Default
-    'Thuốc',          // Vietnamese
-    'Drugs',          // English
-    'Data',           // Common
-    'Medicine',       // Medical
-    'Database'        // Generic
   ];
 
   for (const trySheetName of sheetNames) {
@@ -185,9 +178,17 @@ function createStructuredContent(drug, headers) {
     'Hoạt chất', 'Active Ingredient', 'Thành phần',
     'Công dụng', 'Indication', 'Chỉ định', 'Tác dụng',
     'Liều dùng', 'Dosage', 'Cách dùng', 'Liều lượng',
-    'Tác dụng phụ', 'Side Effects', 'Phản ứng phụ',
-    'Chống chỉ định', 'Contraindication', 'Kiêng kỵ',
-    'Tương tác thuốc', 'Drug Interactions', 'Tương tác',
+    '2.1. LIỀU THÔNG THƯỜNG TRẺ SƠ SINH',
+    '2.2. LIỀU THÔNG THƯỜNG TRẺ EM',
+    '2.3. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG THẬN',
+    '2.4. HIỆU CHỈNH LIỀU THEO CHỨC NĂNG GAN',
+    'Tác dụng phụ', 'Side Effects', 'Phản ứng phụ', '4. TÁC DỤNG KHÔNG MONG MUỐN ĐIỂN HÌNH VÀ THẬN TRỌNG',
+    'Chống chỉ định', 'Contraindication', 'Kiêng kỵ', '3. CHỐNG CHỈ ĐỊNH',
+    '5. CÁCH DÙNG',
+    'Tương tác thuốc', 'Drug Interactions', 'Tương tác', '6. TƯƠNG TÁC THUỐC',
+    '7. QUÁ LIỀU',
+    '8. THEO DÕI ĐIỀU TRỊ',
+    '9. BẢO HIỂM Y TẾ THANH TOÁN',
     'Bảo quản', 'Storage', 'Cách bảo quản',
     'Ghi chú', 'Notes', 'Lưu ý'
   ];
