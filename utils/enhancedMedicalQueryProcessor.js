@@ -602,6 +602,158 @@ class EnhancedMedicalQueryProcessor {
         return [...new Set(matchingSentences)].filter(s => s.length > 0);
     }
 
+    // Step 6: AI-Powered Analysis & Response Enhancement
+    async enhanceWithAIAnalysis(step5Result, originalQuery, aiProvider = null) {
+        if (!step5Result.success) {
+            return step5Result; // No enhancement needed for failed results
+        }
+
+        console.log(`🤖 Step 6 - AI Analysis starting...`);
+        
+        try {
+            // Prepare structured data for AI analysis
+            const analysisData = {
+                originalQuery: originalQuery,
+                drugName: step5Result.drugName,
+                category: step5Result.category,
+                extractedContent: step5Result.extractedContent || step5Result.rawContent,
+                specificContext: step5Result.specificContext,
+                confidence: step5Result.confidence
+            };
+
+            // Create AI prompt for medical analysis
+            const aiPrompt = this.createMedicalAnalysisPrompt(analysisData);
+            console.log(`🧠 Step 6.1 - AI prompt prepared (${aiPrompt.length} chars)`);
+
+            // Get AI analysis (if provider available)
+            let aiAnalysis = null;
+            if (aiProvider && typeof aiProvider.generateResponse === 'function') {
+                try {
+                    aiAnalysis = await aiProvider.generateResponse(aiPrompt);
+                    console.log(`🤖 Step 6.2 - AI analysis received (${aiAnalysis?.length || 0} chars)`);
+                } catch (aiError) {
+                    console.log(`⚠️ Step 6.2 - AI analysis failed, using structured response:`, aiError.message);
+                }
+            } else {
+                console.log(`💡 Step 6.2 - No AI provider, using enhanced structured response`);
+            }
+
+            // Combine structured data with AI insights
+            const enhancedResponse = this.combineStructuredAndAIResponse(step5Result, aiAnalysis, analysisData);
+            console.log(`✅ Step 6.3 - Enhanced response created (${enhancedResponse.message.length} chars)`);
+
+            return enhancedResponse;
+
+        } catch (error) {
+            console.error(`❌ Step 6 - AI enhancement error:`, error.message);
+            // Return original Step 5 result if AI enhancement fails
+            return step5Result;
+        }
+    }
+
+    // Create specialized medical analysis prompt
+    createMedicalAnalysisPrompt(analysisData) {
+        const { originalQuery, drugName, category, extractedContent, specificContext } = analysisData;
+        
+        let contextInfo = '';
+        if (specificContext) {
+            const contexts = [];
+            if (specificContext.conditions.length > 0) {
+                contexts.push(`Điều kiện: ${specificContext.conditions.join(', ')}`);
+            }
+            if (specificContext.severity.length > 0) {
+                contexts.push(`Mức độ: ${specificContext.severity.join(', ')}`);
+            }
+            if (specificContext.patientType.length > 0) {
+                contexts.push(`Đối tượng: ${specificContext.patientType.join(', ')}`);
+            }
+            contextInfo = contexts.join(' | ');
+        }
+
+        return `Bạn là chuyên gia dược lâm sàng. Phân tích và trả lời câu hỏi y khoa sau dựa trên dữ liệu đã được trích xuất chính xác:
+
+**Câu hỏi:** ${originalQuery}
+
+**Thông tin đã trích xuất:**
+- Thuốc: ${drugName}
+- Danh mục: ${category}
+- Nội dung cụ thể: ${extractedContent}
+- Bối cảnh: ${contextInfo || 'Không có bối cảnh cụ thể'}
+
+**Yêu cầu:**
+1. Trả lời trực tiếp và chính xác câu hỏi
+2. Sử dụng CHÍNH XÁC thông tin đã trích xuất, không thêm thông tin bên ngoài
+3. Nếu là liều dùng: nêu rõ liều, tần suất, đường dùng
+4. Nếu là chống chỉ định: giải thích nguy cơ
+5. Thêm lưu ý an toàn nếu cần thiết
+6. Trả lời bằng tiếng Việt, ngắn gọn (tối đa 150 từ)
+
+**Trả lời chuyên nghiệp:**`;
+    }
+
+    // Combine structured data with AI analysis
+    combineStructuredAndAIResponse(step5Result, aiAnalysis, analysisData) {
+        let enhancedMessage = step5Result.message;
+        
+        if (aiAnalysis && aiAnalysis.trim().length > 0) {
+            // AI analysis available - use it as primary response
+            enhancedMessage = `🤖 **Phân tích chuyên sâu:**\n\n${aiAnalysis.trim()}\n\n---\n\n📋 **Dữ liệu gốc:**\n${step5Result.extractedContent || step5Result.rawContent}`;
+        } else {
+            // No AI analysis - enhance structured response
+            enhancedMessage = this.createEnhancedStructuredResponse(step5Result, analysisData);
+        }
+
+        return {
+            ...step5Result,
+            message: enhancedMessage,
+            aiEnhanced: !!aiAnalysis,
+            analysisMethod: aiAnalysis ? 'AI + Structured' : 'Enhanced Structured',
+            step6Applied: true
+        };
+    }
+
+    // Create enhanced structured response without AI
+    createEnhancedStructuredResponse(step5Result, analysisData) {
+        const { drugName, category, specificContext, extractedContent } = analysisData;
+        
+        let response = `💊 **${drugName}** - Thông tin chuyên sâu\n\n`;
+        
+        // Add context if available
+        if (specificContext && Object.values(specificContext).some(arr => arr.length > 0)) {
+            response += `🎯 **Bối cảnh cụ thể:**\n`;
+            if (specificContext.conditions.length > 0) {
+                response += `• Tình trạng: ${specificContext.conditions.join(', ')}\n`;
+            }
+            if (specificContext.patientType.length > 0) {
+                response += `• Đối tượng: ${specificContext.patientType.join(', ')}\n`;
+            }
+            if (specificContext.severity.length > 0) {
+                response += `• Mức độ: ${specificContext.severity.join(', ')}\n`;
+            }
+            response += `\n`;
+        }
+
+        // Add extracted content with smart formatting
+        response += `📋 **${category}:**\n`;
+        if (extractedContent && extractedContent !== step5Result.rawContent) {
+            response += `${extractedContent}\n\n`;
+            response += `📖 **Chi tiết đầy đủ:** ${step5Result.rawContent}`;
+        } else {
+            response += `${step5Result.rawContent}`;
+        }
+
+        // Add safety warnings based on category
+        if (category.includes('LIỀU')) {
+            response += `\n\n⚠️ **Quan trọng:** Liều dùng cần được bác sĩ điều chỉnh theo tình trạng cụ thể của bệnh nhân.`;
+        }
+        
+        if (category.includes('CHỐNG CHỈ ĐỊNH')) {
+            response += `\n\n🚨 **Cảnh báo:** Các chống chỉ định phải được tuân thủ nghiêm ngặt để đảm bảo an toàn bệnh nhân.`;
+        }
+
+        return response;
+    }
+
     // Format content based on medical category and specific context
     formatContentByType(header, content, specificContext = null) {
         // Remove HTML tags for now, can be enhanced later
@@ -643,8 +795,8 @@ class EnhancedMedicalQueryProcessor {
         return cleanContent;
     }
 
-    // Main processing function implementing all 5 steps
-    async processQuery(query, drugData) {
+    // Main processing function implementing all 6 steps
+    async processQuery(query, drugData, aiProvider = null) {
         try {
             console.log(`🔍 Processing query: "${query}"`);
             
@@ -701,8 +853,12 @@ class EnhancedMedicalQueryProcessor {
             console.log(`🎯 Step 4 - Cell data extracted for ${cellData.drugName} - ${cellData.header}`);
             
             // Step 5: Analyze and format response
-            const finalResponse = this.analyzeAndFormatResponse(cellData, query);
-            console.log(`✅ Step 5 - Final response confidence: ${finalResponse.confidence}%`);
+            const step5Result = this.analyzeAndFormatResponse(cellData, query);
+            console.log(`✅ Step 5 - Final response confidence: ${step5Result.confidence}%`);
+            
+            // Step 6: AI-Powered Enhancement (optional, improves response quality)
+            const finalResponse = await this.enhanceWithAIAnalysis(step5Result, query, aiProvider);
+            console.log(`🚀 Step 6 - AI enhancement: ${finalResponse.aiEnhanced ? 'Applied' : 'Structured only'}`);
             
             return finalResponse;
             

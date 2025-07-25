@@ -224,9 +224,9 @@ Vui lòng hỏi về một trong những thuốc này hoặc sử dụng các t�
             
             const startTime = Date.now();
             
-            // ENHANCED 5-STEP PROCESSING
-            console.log('🔍 Using Enhanced 5-Step Medical Query Processing...');
-            const processingResult = await this.queryProcessor.processQuery(message, this.documents);
+            // ENHANCED 6-STEP PROCESSING (with AI Analysis)
+            console.log('🔍 Using Enhanced 6-Step Medical Query Processing...');
+            const processingResult = await this.queryProcessor.processQuery(message, this.documents, this);
             
             if (processingResult.success) {
                 // Direct answer from 5-step processing
@@ -538,6 +538,32 @@ Hãy trả lời một cách chi tiết, chính xác và an toàn. Luôn kết t
             console.log(`📝 Groq chat logged: ${userId} - ${responseTime}ms`);
         } catch (error) {
             console.error('❌ Error logging Groq chat interaction:', error);
+        }
+    }
+
+    // Generate response for Step 6 AI enhancement
+    async generateResponse(prompt) {
+        try {
+            const completion = await this.groq.chat.completions.create({
+                messages: [
+                    {
+                        role: "system",
+                        content: "Bạn là chuyên gia dược lâm sàng Việt Nam với kinh nghiệm sâu về dược học trẻ em. Trả lời chính xác, ngắn gọn và an toàn."
+                    },
+                    {
+                        role: "user",
+                        content: prompt
+                    }
+                ],
+                model: "llama-3.1-8b-instant",
+                temperature: 0.3,
+                max_tokens: 300
+            });
+
+            return completion.choices[0]?.message?.content || '';
+        } catch (error) {
+            console.error('❌ Error in generateResponse for Step 6:', error);
+            return null;
         }
     }
 }
