@@ -157,7 +157,8 @@ class EnhancedMedicalQueryProcessor {
         
         drugKeywords.forEach(drugName => {
             drugData.forEach(drug => {
-                const drugActiveIngredient = drug['HOẠT CHẤT'] || '';
+                // Fix: Access HOẠT CHẤT from originalData structure
+                const drugActiveIngredient = drug.originalData?.['HOẠT CHẤT'] || drug.name || '';
                 
                 // Direct match
                 if (drugActiveIngredient.toLowerCase().includes(drugName.toLowerCase())) {
@@ -210,7 +211,7 @@ class EnhancedMedicalQueryProcessor {
         matchedDrugs
             .sort((a, b) => b.confidence - a.confidence)
             .forEach(match => {
-                const key = match.drug['HOẠT CHẤT'];
+                const key = match.drug.originalData?.['HOẠT CHẤT'] || match.drug.name;
                 if (!seen.has(key)) {
                     seen.add(key);
                     uniqueMatches.push(match);
@@ -296,15 +297,15 @@ class EnhancedMedicalQueryProcessor {
         const drug = matchedDrug.drug;
         const header = matchedHeader.header;
         
-        const cellContent = drug[header];
+        const cellContent = drug.originalData?.[header] || '';
         
         return {
-            drugName: drug['HOẠT CHẤT'],
+            drugName: drug.originalData?.['HOẠT CHẤT'] || drug.name,
             header: header,
             content: cellContent || '',
             drugConfidence: matchedDrug.confidence,
             headerConfidence: matchedHeader.confidence,
-            lastUpdated: drug['CẬP NHẬT'] || 'Not specified'
+            lastUpdated: drug.originalData?.['CẬP NHẬT'] || 'Not specified'
         };
     }
 
@@ -402,7 +403,7 @@ class EnhancedMedicalQueryProcessor {
             }
             
             // Step 3: Match content headers
-            const availableHeaders = Object.keys(drugData[0] || {});
+            const availableHeaders = Object.keys(drugData[0]?.originalData || {});
             const matchedHeaders = this.matchContentHeaders(keywords.categories, availableHeaders);
             console.log(`📋 Step 3 - Matched headers:`, matchedHeaders.length);
             
