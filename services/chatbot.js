@@ -225,7 +225,11 @@ class ChatbotService {
                     message: response,
                     isAiGenerated: false,
                     model: 'Simple Search',
-                    sources: relevantDocs.map(d => d.title).join(', ')
+                    sources: relevantDocs.map(d => ({
+                        title: d.title || 'Unknown document',
+                        source: d.source || 'Knowledge Base', 
+                        confidence: 85 // Medium confidence for simple search
+                    }))
                 }
             };
 
