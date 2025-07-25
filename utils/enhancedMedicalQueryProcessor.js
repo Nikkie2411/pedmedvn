@@ -73,14 +73,15 @@ class EnhancedMedicalQueryProcessor {
             'tigecycline': ['tigecycline', 'tygacil'],
             'amoxicillin': ['amoxicillin', 'amoxycillin', 'augmentin'],
             'ampicillin': ['ampicillin', 'penbritin', 'principen'],
+            'meropenem': ['meropenem', 'meronem', 'merrem'],
+            'vancomycin': ['vancomycin', 'vancocin'],
+            'ceftriaxone': ['ceftriaxone', 'rocephin'],
             'paracetamol': ['paracetamol', 'acetaminophen', 'tylenol', 'efferalgan'],
             'ibuprofen': ['ibuprofen', 'brufen', 'advil'],
             'cephalexin': ['cephalexin', 'keflex', 'cefalexin'],
             'cefazolin': ['cefazolin', 'ancef', 'kefzol'],
             'gentamicin': ['gentamicin', 'garamycin'],
-            'vancomycin': ['vancomycin', 'vancocin'],
             'metronidazole': ['metronidazole', 'flagyl'],
-            'ceftriaxone': ['ceftriaxone', 'rocephin'],
             'azithromycin': ['azithromycin', 'zithromax'],
             'clarithromycin': ['clarithromycin', 'biaxin'],
             'erythromycin': ['erythromycin', 'erythrocin'],
@@ -89,7 +90,11 @@ class EnhancedMedicalQueryProcessor {
             'clindamycin': ['clindamycin', 'cleocin'],
             'trimethoprim': ['trimethoprim', 'bactrim', 'co-trimoxazole'],
             'fluconazole': ['fluconazole', 'diflucan'],
-            'nystatin': ['nystatin', 'mycostatin']
+            'nystatin': ['nystatin', 'mycostatin'],
+            'cefotaxime': ['cefotaxime', 'claforan'],
+            'imipenem': ['imipenem', 'primaxin'],
+            'piperacillin': ['piperacillin', 'tazocin', 'zosyn'],
+            'lincomycin': ['lincomycin', 'lincocin']
         };
     }
 

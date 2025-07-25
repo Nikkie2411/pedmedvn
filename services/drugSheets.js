@@ -69,6 +69,60 @@ function getFallbackDrugData() {
       'Trong danh mục BHYT, thanh toán đầy đủ'
     ],
     
+    // Meropenem - Requested by user
+    [
+      'Meropenem',
+      '2023-12-15',
+      'Kháng sinh Carbapenem phổ rộng',
+      'Trẻ sơ sinh <32 tuần: 20mg/kg q12h IV. Trẻ sơ sinh ≥32 tuần: 20mg/kg q8h IV. Nhiễm trùng nặng: 40mg/kg q8h',
+      'Nhiễm trùng nhẹ-vừa: 10-20mg/kg q8h IV. Nhiễm trùng nặng: 40mg/kg q8h IV. Viêm màng não: 40mg/kg q8h. Max: 2g/dose',
+      'CrCl >50ml/min: liều bình thường. CrCl 26-50: q12h. CrCl 10-25: q24h. CrCl <10: q24h + giảm 50%',
+      'Không cần điều chỉnh liều',
+      'Dị ứng carbapenem, beta-lactam. Thận trọng với dị ứng penicillin (cross-reactivity 1-3%)',
+      'Phổ biến: Tiêu chảy (4.8%), nôn (1.4%), đau đầu. Hiếm: C.diff colitis, co giật (liều cao + suy thận)',
+      'IV: Pha trong NS, D5W. Infusion 15-30 phút (3 phút nếu bolus). Không trộn với thuốc khác',
+      'Valproic acid (giảm nồng độ VPA nghiêm trọng - có thể gây co giật), Probenecid (tăng nồng độ meropenem)',
+      'Quá liều hiếm gặp. Triệu chứng: co giật, encephalopathy. Xử trí: hemodialysis, hỗ trợ triệu chứng',
+      'Monitor: Chức năng thận, Co giật nếu có yếu tố nguy cơ, C.diff infection. Không cần monitor nồng độ',
+      'Trong danh mục BHYT với điều kiện hạn chế'
+    ],
+    
+    // Vancomycin
+    [
+      'Vancomycin',
+      '2023-12-12',
+      'Kháng sinh Glycopeptide',
+      'Loading dose: 20-25mg/kg IV. Maintenance: 10-15mg/kg q8-12h IV (theo PMA và SCr). Target trough: 10-15mg/L',
+      'Loading: 20mg/kg IV. Maintenance: 10-15mg/kg q6-8h IV. Nhiễm trùng nặng: 15-20mg/kg q6h. Target trough: 15-20mg/L',
+      'CrCl >50ml/min: q8-12h. CrCl 10-50: q24-48h. CrCl <10: q48-96h. Monitor nồng độ thuốc',
+      'Không cần điều chỉnh liều',
+      'Dị ứng vancomycin. Thận trọng: Suy thận, mất thính lực có sẵn',
+      'Red man syndrome (25% nếu infusion nhanh), Nephrotoxicity (5-15%), Ototoxicity (1-2%)',
+      'IV: Pha trong D5W hoặc NS. Infusion ≥60 phút (≥10mg/ml). Không bolus. Premedication antihistamine nếu cần',
+      'Aminoglycosides (tăng nephro/ototoxicity), Loop diuretics, Contrast agents',
+      'Triệu chứng: Suy thận, mất thính lực. Xử trí: ngưng thuốc, hemodialysis, hỗ trợ',
+      'QUAN TRỌNG: Monitor trough levels trước liều 4-5. Target: 10-20mg/L. Monitor SCr, thính lực',
+      'Trong danh mục BHYT, thanh toán có điều kiện'
+    ],
+    
+    // Ceftriaxone
+    [
+      'Ceftriaxone',
+      '2023-11-28',
+      'Kháng sinh Cephalosporin thế hệ 3',
+      'CHỐNG CHỈ ĐỊNH trẻ sơ sinh <28 ngày nếu có hyperbilirubinemia. Nếu dùng: 20-50mg/kg/ngày q24h IV/IM',
+      'Nhiễm trùng nhẹ-vừa: 50-75mg/kg/ngày q24h IV/IM. Nhiễm trùng nặng: 80-100mg/kg/ngày. Viêm màng não: 100mg/kg/ngày',
+      'Không cần điều chỉnh liều nếu CrCl >10ml/min',
+      'Suy gan nặng + suy thận: giảm liều 50%',
+      'Trẻ sơ sinh có hyperbilirubinemia (nguy cơ kernicterus), Dị ứng cephalosporin, Không dùng với Ca++ IV',
+      'Phổ biến: Tiêu chảy, phát ban. Hiếm: Cholelithiasis (sỏi mật), thrombophlebitis',
+      'IV: Pha trong D5W, NS. IM: Lidocaine 1%. Không trộn với Ca++, Mg++. Infusion 30 phút',
+      'Calcium IV (kết tủa chết người), Warfarin (tăng INR), Cyclosporine',
+      'Quá liều hiếm gặp. Xử trí: hỗ trợ triệu chứng, không có thuốc giải độc',
+      'Monitor: Bilirubin ở trẻ sơ sinh, CBC, chức năng gan thận định kỳ',
+      'Trong danh mục BHYT, thanh toán đầy đủ'
+    ],
+    
     // Paracetamol
     [
       'Paracetamol (Acetaminophen)',
@@ -181,10 +235,16 @@ async function loadDrugData(sheetName = null) {
   }
 
   // If we get here, no sheet worked
-  logger.error('❌ Could not load data from any sheet. Using fallback data.');
-  logger.error('   - Check sheet names in your Google Sheets');
-  logger.error('   - Common names: pedmedvnch, PedMed2025, Sheet1, Thuốc, Drugs, Data');
-  return getFallbackDrugData();
+  logger.error('❌ Could not load data from Google Sheets. Using REAL sheets structure (temporary).');
+  logger.error('   - Google Sheets authentication needs to be fixed');
+  logger.error('   - Using exact structure from pedmedvnch sheet');
+  
+  // Load real sheets structure instead of fallback
+  const { loadRealSheetsStructure } = require('./realSheetsData');
+  const realData = await loadRealSheetsStructure();
+  
+  logger.info('📊 Using REAL Google Sheets structure with current drugs');
+  return await processDrugData(realData, 'RealSheetsStructure');
 }
 
 /**
