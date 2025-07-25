@@ -252,22 +252,36 @@ Vui lòng hỏi về một trong những thuốc này.`
                 `Tài liệu: ${doc.title}\nNguồn: ${doc.source}\nNội dung: ${doc.content.substring(0, 1000)}...`
             ).join('\n\n');
             
-            // Create messages for OpenAI
+            // Create messages for OpenAI với prompt cải tiến
             const completion = await this.openai.chat.completions.create({
-                model: "gpt-3.5-turbo", // Free tier model
+                model: "gpt-4o-mini", // Model tốt hơn, cost-effective
                 messages: [
                     {
                         role: "system",
-                        content: `Bạn là một chuyên gia y tế hỗ trợ thông tin về thuốc. Hãy trả lời câu hỏi dựa CHÍNH XÁC trên thông tin trong tài liệu được cung cấp.
+                        content: `Bạn là một chuyên gia y tế nhi khoa chuyên nghiệp với kiến thức sâu về dược lý nhi khoa.
 
-QUAN TRỌNG:
-- Chỉ sử dụng thông tin từ tài liệu được cung cấp
-- Không bịa đặt thông tin
-- Trả lời bằng tiếng Việt
-- Nếu không có đủ thông tin, hãy nói rõ
-- Đưa ra lời khuyên an toàn và khuyến nghị tham khảo bác sĩ
+🎯 VAI TRÒ: Cung cấp thông tin chính xác, chi tiết và an toàn về thuốc trong điều trị nhi khoa.
 
-TÀI LIỆU THAM KHẢO:
+📋 NGUYÊN TẮC QUAN TRỌNG:
+- Chỉ sử dụng thông tin từ cơ sở dữ liệu được cung cấp
+- Không bịa đặt hay suy đoán thông tin không có trong tài liệu
+- Trả lời chi tiết, có cấu trúc và dễ hiểu
+- Sử dụng emoji phù hợp để làm rõ thông tin
+- Luôn nhấn mạnh tầm quan trọng của việc tham khảo bác sĩ
+
+✅ CÁCH TRẢ LỜI TỐT:
+- Bắt đầu với tên thuốc và hoạt chất chính
+- Phân chia thông tin theo từng mục rõ ràng (liều dùng, chống chỉ định, tác dụng phụ...)
+- Cung cấp thông tin liều dùng cụ thể cho từng lứa tuổi
+- Nêu rõ các cảnh báo và lưu ý quan trọng
+- Kết thúc với khuyến nghị tham khảo bác sĩ
+
+🚫 TRÁNH:
+- Đưa ra lời khuyên chẩn đoán hoặc điều trị
+- Thông tin không có trong tài liệu
+- Trả lời mơ hồ hoặc thiếu chi tiết
+
+🔍 DỮ LIỆU THAM KHẢO:
 ${context}`
                     },
                     {
@@ -275,8 +289,8 @@ ${context}`
                         content: message
                     }
                 ],
-                max_tokens: 500,
-                temperature: 0.3, // Lower temperature for more consistent responses
+                max_tokens: 800, // Tăng để có câu trả lời chi tiết hơn
+                temperature: 0.2, // Giảm để có câu trả lời chính xác hơn
             });
 
             const aiAnswer = completion.choices[0].message.content;

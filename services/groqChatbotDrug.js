@@ -16,7 +16,7 @@ class GroqChatbotService {
             this.groq = new Groq({
                 apiKey: this.groqApiKey
             });
-            this.modelName = 'llama-3.1-70b-versatile'; // Hoặc 'mixtral-8x7b-32768'
+            this.modelName = 'llama-3.1-8b-instant'; // Updated model - faster và vẫn free
             console.log('✅ Groq AI initialized - Free & Ultra Fast! Key found:', this.groqApiKey ? 'Yes' : 'No');
         } else {
             console.warn('⚠️ Groq API key not found. Get free key at console.groq.com');
