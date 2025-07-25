@@ -477,4 +477,5 @@ class AIChatbotManager {
     }
 }
 
-module.exports = AIChatbotManager;
+// Export singleton instance for production use
+module.exports = new AIChatbotManager();
