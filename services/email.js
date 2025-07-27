@@ -108,6 +108,11 @@ async function sendRegistrationEmail(toEmail, username) {
       <h2 style="color: #4CAF50;">Xin chào ${username}!</h2>
       <p style="font-weight: bold">Tài khoản ${username} của bạn đã được phê duyệt thành công.</p>
       <p>Bạn có thể đăng nhập tại: <a href="https://pedmed-vnch.web.app">Đăng nhập ngay</a></p>
+      <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #ffc107; margin: 15px 0;">
+        <p style="margin: 0; font-weight: bold; color: #856404;">📝 Lưu ý quan trọng:</p>
+        <p style="margin: 5px 0 0 0; color: #856404;">Vui lòng ghi nhớ tên đăng nhập của bạn: <strong>${username}</strong></p>
+        <p style="margin: 5px 0 0 0; color: #856404;">Bạn sẽ cần tên đăng nhập này để truy cập hệ thống.</p>
+      </div>
       <p>Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!</p>
     `;
     await sendEmailWithGmailAPI(toEmail, "TÀI KHOẢN PEDMEDVN ĐÃ ĐƯỢC PHÊ DUYỆT", emailBody);

@@ -4,7 +4,7 @@ class AIChatbotManager {
     constructor() {
         this.providerClasses = {}; // Store classes
         this.providers = {}; // Store instances
-        this.currentProvider = process.env.AI_PROVIDER || 'gemini';
+        this.currentProvider = process.env.AI_PROVIDER || 'groq';
         this.isInitialized = false;
     }
 
@@ -31,7 +31,7 @@ class AIChatbotManager {
             
             // Debug environment variables
             console.log('🔍 Checking environment variables...');
-            const envKeys = ['GEMINI_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY'];
+            const envKeys = ['GEMINI_API_KEY', 'GROQ_API_KEY'];
             envKeys.forEach(key => {
                 const value = process.env[key];
                 if (value) {
@@ -115,16 +115,7 @@ class AIChatbotManager {
                 }
             }
 
-            // 2. OpenAI GPT (Có free tier) - Updated for Google Sheets
-            try {
-                const OpenAIChatbot = require('./openaiChatbot');
-                this.providerClasses.openai = OpenAIChatbot;
-                console.log('✅ OpenAI GPT provider loaded');
-            } catch (error) {
-                console.log('⚠️ OpenAI GPT provider not available:', error.message);
-            }
-
-            // 3. Groq AI (MIỄN PHÍ và siêu nhanh) - Drug focused with Google Sheets
+            // 2. Groq AI (MIỄN PHÍ và siêu nhanh) - Drug focused with Google Sheets
             try {
                 const GroqChatbotDrug = require('./groqChatbotDrug');
                 this.providerClasses.groq = GroqChatbotDrug;
@@ -141,13 +132,21 @@ class AIChatbotManager {
                 }
             }
 
-            // 4. Fallback to original chatbot (local documents) - only as last resort
+            // 3. Original chatbot với Google Sheets (đã updated)
             try {
-                const OriginalChatbot = require('./chatbot');
+                const OriginalChatbot = require('./chatbotUpdated');
                 this.providerClasses.original = OriginalChatbot;
-                console.log('⚠️ Original chatbot provider loaded (uses local documents - consider updating)');
+                console.log('✅ Original chatbot provider loaded (uses Google Sheets)');
             } catch (error) {
                 console.log('⚠️ Original chatbot provider not available:', error.message);
+                // Fallback to old chatbot if new one fails
+                try {
+                    const OldChatbot = require('./chatbot');
+                    this.providerClasses.original = OldChatbot;
+                    console.log('⚠️ Original chatbot provider loaded (fallback to local documents)');
+                } catch (fallbackError) {
+                    console.log('⚠️ Original chatbot fallback also failed:', fallbackError.message);
+                }
             }
 
         } catch (error) {
@@ -235,14 +234,6 @@ class AIChatbotManager {
                     console.log('⚠️ Gemini provider has no API key');
                     return 'needs_api_key';
                 }
-                
-            case 'openai':
-                // Check if OpenAI API key exists
-                if (!process.env.OPENAI_API_KEY) {
-                    console.log('⚠️ OPENAI_API_KEY not found in environment');
-                    return 'needs_api_key';
-                }
-                return 'ready';
                 
             case 'groq':
                 // Check if Groq has any API key (env or fallback)
@@ -367,10 +358,6 @@ class AIChatbotManager {
                     case 'gemini':
                         displayName = 'Google Gemini AI';
                         description = 'AI miễn phí từ Google với 50 requests/day - tốt cho tiếng Việt';
-                        break;
-                    case 'openai':
-                        displayName = 'OpenAI GPT';
-                        description = 'AI chất lượng cao với $5 free credit';
                         break;
                     case 'groq':
                         displayName = 'Groq AI';

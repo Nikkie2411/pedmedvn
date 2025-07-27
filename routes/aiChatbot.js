@@ -75,16 +75,6 @@ router.get('/providers', async (req, res) => {
                             '5. Restart server'
                         ]
                     },
-                    openai: {
-                        url: 'https://platform.openai.com/api-keys',
-                        steps: [
-                            '1. Truy cập https://platform.openai.com/api-keys',
-                            '2. Đăng ký tài khoản (có $5 free credit)',
-                            '3. Tạo API key mới',
-                            '4. Thêm OPENAI_API_KEY vào file .env',
-                            '5. Restart server'
-                        ]
-                    },
                     groq: {
                         url: 'https://console.groq.com/keys',
                         steps: [
@@ -121,7 +111,7 @@ router.post('/switch-provider', async (req, res) => {
             console.log('❌ No provider specified in request');
             return res.status(400).json({
                 success: false,
-                message: 'Vui lòng chỉ định provider (gemini, openai, groq, original)'
+                message: 'Vui lòng chỉ định provider (gemini, groq, original)'
             });
         }
         
@@ -324,7 +314,6 @@ router.get('/debug', async (req, res) => {
         const envInfo = {
             GEMINI_API_KEY: process.env.GEMINI_API_KEY ? 'Set' : 'Missing',
             GROQ_API_KEY: process.env.GROQ_API_KEY ? 'Set' : 'Missing',
-            OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'Set' : 'Missing',
         };
         
         const managerInfo = {
